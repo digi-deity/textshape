@@ -14,6 +14,8 @@ by Wilbur (J. Algorithms 1988) and Eppstein (J. Algorithms 1990).
 D. Eppstein, March 2002, significantly revised August 2005
 """
 
+import numpy as np
+
 def ConcaveMinima(RowIndices, ColIndices, Matrix):
     """
     Search for the minimum value in each column of a matrix.
@@ -204,20 +206,6 @@ class LineNumbers:
             self.line_numbers.append(line_number)
         return self.line_numbers[i]
 
-class Hyphens:
-    def __init__(self):
-        self.hyphens = [None]
-
-    def hyphenate(self, word):
-        import hyphen
-
-        return [[word] if len(word) < 4 or ('=' in word) else hyphen.Hyphenator('en_US').syllables(word)]
-
-    def get(self, i, cost):
-        while (pos := len(self.line_numbers)) < i + 1:
-            line_number = 1 + self.get(cost.index(pos), cost)
-            self.line_numbers.append(line_number)
-        return self.line_numbers[i]
 
 class Fragment:
     def __init__(self, word, width, whitespace_width, penalty_width, hyphenator=None):
@@ -233,28 +221,15 @@ class Fragment:
             self._syllables = [[self.word] if len(self.word) < 4 or ('=' in self.word) else self.hyphenator(self.word)]
         return self._syllables
 
-def wrap(text,                 # string or unicode to be wrapped
+def wrap(fragments: list[Fragment],                 # string or unicode to be wrapped
          target=76,            # maximum length of a wrapped line
-         measure=len,          # how to measure the length of a word
-         overflow_penalty=1000,     # penalize long lines by overpen*(len-target)
+         overflow_penalty=10000,     # penalize long lines by overpen*(len-target)
          nlinepenalty=1000,    # penalize more lines than optimal
          short_last_line_fraction=10,    # penalize really short last line
          short_last_line_penalty=25,    # by this amount
-         hyphen_penalty=25,   # penalize hyphenated words
-         hyphenator=None,     # hyphenation function
+         hyphen_penalty=15,   # penalize hyphenated words
          ):
     """Wrap the given text, returning a sequence of lines."""
-
-    fragments = []
-    for word in text.split():
-        spacing = 1
-        fragments.append(Fragment(word, measure(word), spacing, 0))
-
-    fragments = []
-    for word in text.split():
-        for i, letter in enumerate(word):
-            is_end = i == len(word) - 1
-            fragments.append(Fragment(letter, measure(letter), 1 if is_end else 0, 0 if is_end else 1))
 
     widths = [0.0]
     width = 0.0
@@ -264,7 +239,7 @@ def wrap(text,                 # string or unicode to be wrapped
 
     line_numbers = LineNumbers()
 
-    import numpy as np
+
     M = np.zeros((len(fragments) + 1, len(fragments) + 1))
 
     # Define penalty function for breaking on line words[i:j]
@@ -278,15 +253,11 @@ def wrap(text,                 # string or unicode to be wrapped
         line_width = float(target) #/ (2 if line_number % 2 == 0 else 1)
         target_width = max(line_width, 1.0)
 
-        #line_width = widths[j] - widths[i] - fragments[j - 1].whitespace_width + fragments[j - 1].penalty_width
-        line_pre_width = widths[j - 1] - widths[i]
-        line_width = line_pre_width + fragments[j - 1].width + fragments[j - 1].penalty_width
+        line_width = widths[j] - widths[i] - fragments[j - 1].whitespace_width + fragments[j - 1].penalty_width
 
         c = cost.value(i) + nlinepenalty
 
         if line_width > target_width:
-            if hyphenator is not None and line_pre_width < target_width:
-                pass
             overflow = line_width - target_width
             c += overflow * overflow_penalty
         elif j < len(fragments):
@@ -296,89 +267,18 @@ def wrap(text,                 # string or unicode to be wrapped
             c += short_last_line_penalty
 
         if fragments[j - 1].penalty_width > 0.0:
-            c += hyphen_penalty
+            c += hyphen_penalty ** (1 if fragments[i-1].penalty_width == 0. else 2)
 
         M[i,j] = c
         return c
 
     # Apply concave minima algorithm and backtrack to form lines
     cost = OnlineConcaveMinima(penalty, 0)
+
     pos = len(fragments)
-    lines = []
+    breakpoints = [pos]
     while pos:
-        breakpoint = cost.index(pos)
-        print(pos, cost.value(pos) - cost.value(breakpoint), )
-        line = []
-        for i in range(breakpoint, pos):
-            line.append(fragments[i].word)
-            if not i + 1 == pos:
-                line.append('_' * fragments[i].whitespace_width)
-        if fragments[i].penalty_width > 0.0:
-            line.append('-')
-        lines.append(''.join(line))
-        pos = breakpoint
-    lines.reverse()
+        pos = cost.index(pos)
+        breakpoints.append(pos)
 
-    return lines
-
-
-if __name__ == "__main__":
-    import re
-
-    medium_long_text = \
-        """Whether I shall turn out to be the hero of my own life, or whether that
-        station will be held by anybody else, these pages must show. To begin my
-        life with the beginning of my life, I record that I was born (as I have
-        been informed and believe) on a Friday, at twelve o’clock at night.
-        It was remarked that the clock began to strike, and I began to cry,
-        simultaneously.
-
-        In consideration of the day and hour of my birth, it was declared by
-        the nurse, and by some sage women in the neighbourhood who had taken a
-        lively interest in me several months before there was any possibility
-        of our becoming personally acquainted, first, that I was destined to be
-        unlucky in life; and secondly, that I was privileged to see ghosts and
-        spirits; both these gifts inevitably attaching, as they believed, to
-        all unlucky infants of either gender, born towards the small hours on a
-        Friday night.
-
-        I need say nothing here, on the first head, because nothing can show
-        better than my history whether that prediction was verified or falsified
-        by the result. On the second branch of the question, I will only remark,
-        that unless I ran through that part of my inheritance while I was still
-        a baby, I have not come into it yet. But I do not at all complain of
-        having been kept out of this property; and if anybody else should be in
-        the present enjoyment of it, he is heartily welcome to keep it.
-
-        I was born with a caul, which was advertised for sale, in the
-        newspapers, at the low price of fifteen guineas. Whether sea-going
-        people were short of money about that time, or were short of faith and
-        preferred cork jackets, I don’t know; all I know is, that there was but
-        one solitary bidding, and that was from an attorney connected with the
-        bill-broking business, who offered two pounds in cash, and the balance
-        in sherry, but declined to be guaranteed from drowning on any higher
-        bargain. Consequently the advertisement was withdrawn at a dead
-        loss--for as to sherry, my poor dear mother’s own sherry was in the
-        market then--and ten years afterwards, the caul was put up in a raffle
-        down in our part of the country, to fifty members at half-a-crown a
-        head, the winner to spend five shillings. I was present myself, and I
-        remember to have felt quite uncomfortable and confused, at a part of
-        myself being disposed of in that way. The caul was won, I recollect, by
-        an old lady with a hand-basket, who, very reluctantly, produced from it
-        the stipulated five shillings, all in halfpence, and twopence halfpenny
-        short--as it took an immense time and a great waste of arithmetic, to
-        endeavour without any effect to prove to her. It is a fact which will
-        be long remembered as remarkable down there, that she was never drowned,
-        but died triumphantly in bed, at ninety-two. I have understood that it
-        was, to the last, her proudest boast, that she never had been on the
-        water in her life, except upon a bridge; and that over her tea (to which
-        she was extremely partial) she, to the last, expressed her indignation
-        at the impiety of mariners and others, who had the presumption to go
-        ‘meandering’ about the world. It was in vain to represent to her
-        that some conveniences, tea perhaps included, resulted from this
-        objectionable practice. She always returned, with greater emphasis and
-        with an instinctive knowledge of the strength of her objection, ‘Let us
-        have no meandering.’"""
-
-
-    print('\n'.join(wrap(medium_long_text, 100)))
+    return breakpoints[::-1]
