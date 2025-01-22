@@ -1,4 +1,5 @@
 import re
+import numpy as np
 
 from hyperhyphen import Hyphenator
 from textshape.shape import FontMeasure
@@ -89,8 +90,19 @@ def test_wrap_font():
 
     text = TEXTS[-1]
     ft = Text(text, fragmenter=h, measure=fm)
+    widths = ft.widths
     linebreaks, hyphens = ft.wrap(width, fontsize)
+    extents = fm.vhb.hbfont.get_font_extents("ltr")
+    line_gap = (extents.line_gap or extents.ascender - extents.descender) / fm.em
+    y = np.zeros_like(widths)
+    y[linebreaks[:-1]] = -line_gap
+    y = np.pad(y.cumsum(), (1, 0))
 
-    svg = fm.render_svg(text, ft.widths, linebreaks, hyphens, fontsize=fontsize, linewidth=width)
+    x = widths
+    x[linebreaks[:-1]] -= np.diff(widths.cumsum()[linebreaks[:-1]], prepend=0)
+    x = np.pad(x.cumsum(), (1, 0))
+
+
+    svg = fm.render_svg(text, x, y, hyphens, fontsize=fontsize, linewidth=width)
     with open('text.svg', 'w') as f:
         f.write(svg)

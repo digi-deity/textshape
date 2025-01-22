@@ -215,7 +215,7 @@ def wrap(fragments: Fragments,
          nlinepenalty=1000,  # penalize more lines than optimal
          short_last_line_fraction=10,  # penalize really short last line
          short_last_line_penalty=25,  # by this amount
-         hyphen_penalty=15,  # penalize hyphenated words
+         hyphen_penalty=15  # penalize hyphenated words
          ):
     """Wrap the given text, returning a sequence of lines."""
 

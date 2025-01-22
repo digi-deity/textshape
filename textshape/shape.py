@@ -64,7 +64,7 @@ class FontMeasure():
 
         return widths / self.em
 
-    def render_svg(self, text: str, widths: FloatVector, linebreaks: list[int],
+    def render_svg(self, text: str, x: FloatVector, y: FloatVector,
                    hyphens: list[int], fontsize: float, linewidth: float):
         """Converts a buffer to SVG
 
@@ -77,63 +77,65 @@ class FontMeasure():
         defs = {}
         paths = []
 
-        lb = deque(linebreaks)
         hp = deque(hyphens)
 
         buf = self.shape(text)
         vhb = self.vhb
-        hbfont = vhb.hbfont
 
-        font_extents = hbfont.get_font_extents("ltr")
-        line_gap = font_extents.line_gap or font_extents.ascender - font_extents.descender
-        y_max = font_extents.ascender
-        y_min = y_max - len(linebreaks) * line_gap
-        x_min = 0
-        x_max = linewidth * self.em / fontsize
 
-        lb_next = None if len(lb) == 0 else lb.popleft()
+        x = x * self.em
+        y = y * self.em
+
         hp_next = None if len(hp) == 0 else hp.popleft()
         buf_hyphen = self.shape('-')
+        info_hyphen = buf_hyphen.glyph_infos[0]
+        pos_hyphen = buf_hyphen.glyph_positions[0]
 
         x_cursor = 0
         y_cursor = 0
 
         i = 0
         n_glyphs = len(buf)
+        prev_cluster = -1
+        prev_x_advance = 0
+        prev_y_advance = 0
         while i < n_glyphs:
             info = buf.glyph_infos[i]
             pos = buf.glyph_positions[i]
             cluster = info.cluster
-            next_cluster = buf.glyph_infos[i+1].cluster if i+1 < n_glyphs else len(widths)
 
             if hp_next and cluster > hp_next:
                 hp_next = hp.popleft() if hp else None
-                info = buf_hyphen.glyph_infos[0]
-                pos = buf_hyphen.glyph_positions[0]
+                info = info_hyphen
+                pos = pos_hyphen
                 i -= 1
-            elif lb_next and cluster > lb_next:
-                lb_next = lb.popleft() if lb else None
-                x_cursor = 0
-                y_cursor = y_cursor - line_gap
+                cluster = -1
 
-            dx, dy = pos.x_offset, pos.y_offset
-            p = vhb._glyph_to_svg(info.codepoint, x_cursor + dx, y_cursor + dy, defs)
+            if cluster > prev_cluster:
+                x_cursor = x[cluster]
+                y_cursor = y[cluster]
+            else:
+                # Something interesting with clustering has happened. Advance according to harfbuzz suggestion.
+                x_cursor += prev_x_advance
+                y_cursor += prev_y_advance
+
+            p = vhb._glyph_to_svg(info.codepoint, x_cursor + pos.x_offset, y_cursor + pos.y_offset, defs)
             paths.append(p)
 
-            # Try to calculate x_advances from our provided widths
-            # This will
-            x_advance = widths[cluster:next_cluster].sum() * self.em if next_cluster > cluster else pos.x_advance
-            x_cursor += x_advance
-            y_cursor += pos.y_advance
+            prev_y_advance = pos.y_advance
+            prev_x_advance = pos.x_advance
+            prev_cluster = cluster
             i += 1
 
         # Add a empty border and rescale
         s = fontsize / self.em
-        x_min *= s
-        y_min *= s
-        x_max *= s
-        y_max *= s
-        line_gap *= s
+        font_extents = vhb.hbfont.get_font_extents("ltr")
+        line_gap = (font_extents.line_gap or font_extents.ascender - font_extents.descender) * s
+
+        x_min = 0
+        x_max = linewidth
+        y_max = font_extents.ascender * s
+        y_min = (y[-1] + font_extents.descender) * s
 
         x_min = x_min - line_gap
         y_min = y_min - line_gap
