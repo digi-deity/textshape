@@ -16,6 +16,9 @@ D. Eppstein, March 2002, significantly revised August 2005
 
 import numpy as np
 
+from textshape.fragment import Fragments
+
+
 def ConcaveMinima(RowIndices, ColIndices, Matrix):
     """
     Search for the minimum value in each column of a matrix.
@@ -206,68 +209,52 @@ class LineNumbers:
             self.line_numbers.append(line_number)
         return self.line_numbers[i]
 
-
-class Fragment:
-    def __init__(self, word, width, whitespace_width, penalty_width, hyphenator=None):
-        self.word = word
-        self.width = width
-        self.whitespace_width = whitespace_width
-        self.penalty_width = penalty_width
-        self.hyphenator = hyphenator
-        self._syllables = None
-
-    def hyphenate(self):
-        if self._syllables is None:
-            self._syllables = [[self.word] if len(self.word) < 4 or ('=' in self.word) else self.hyphenator(self.word)]
-        return self._syllables
-
-def wrap(fragments: list[Fragment],                 # string or unicode to be wrapped
-         target=76,            # maximum length of a wrapped line
-         overflow_penalty=10000,     # penalize long lines by overpen*(len-target)
-         nlinepenalty=1000,    # penalize more lines than optimal
-         short_last_line_fraction=10,    # penalize really short last line
-         short_last_line_penalty=25,    # by this amount
-         hyphen_penalty=15,   # penalize hyphenated words
+def wrap(fragments: Fragments,
+         target=76,  # maximum length of a wrapped line
+         overflow_penalty=10000,  # penalize long lines by overpen*(len-target)
+         nlinepenalty=1000,  # penalize more lines than optimal
+         short_last_line_fraction=10,  # penalize really short last line
+         short_last_line_penalty=25,  # by this amount
+         hyphen_penalty=15,  # penalize hyphenated words
          ):
     """Wrap the given text, returning a sequence of lines."""
 
-    widths = [0.0]
-    width = 0.0
-    for fragment in fragments:
-        width += fragment.width + fragment.whitespace_width
-        widths.append(width)
+    widths, whitespace_widths, penalty_widths = fragments
+
+    n = len(widths)
+    cumwidths = np.zeros(n + 1)
+    cumwidths[1:] = widths.cumsum() + whitespace_widths.cumsum()
 
     line_numbers = LineNumbers()
 
-
-    M = np.zeros((len(fragments) + 1, len(fragments) + 1))
+    M = np.zeros((n + 1, n + 1))
 
     # Define penalty function for breaking on line words[i:j]
     # Below this definition we will set up cost[i] to be the
     # total penalty of all lines up to a break prior to word i.
     def penalty(i, j):
-        if j > len(fragments):
+        if j > n:
             return -i    # concave flag for out of bounds
 
-        line_number = line_numbers.get(i, cost)
-        line_width = float(target) #/ (2 if line_number % 2 == 0 else 1)
+        #line_number = line_numbers.get(i, cost)
+        line_width = float(target)
         target_width = max(line_width, 1.0)
 
-        line_width = widths[j] - widths[i] - fragments[j - 1].whitespace_width + fragments[j - 1].penalty_width
+        line_width = cumwidths[j] - cumwidths[i] - whitespace_widths[j - 1] + penalty_widths[j - 1]
 
         c = cost.value(i) + nlinepenalty
 
         if line_width > target_width:
             overflow = line_width - target_width
             c += overflow * overflow_penalty
-        elif j < len(fragments):
+        elif j < n:
             gap = target_width - line_width
             c += gap * gap
         elif i + 1 == j and line_width < target_width / short_last_line_fraction:
             c += short_last_line_penalty
 
-        if fragments[j - 1].penalty_width > 0.0:
-            c += hyphen_penalty ** (1 if fragments[i-1].penalty_width == 0. else 2)
+        if penalty_widths[j - 1] > 0.0:
+            c += hyphen_penalty ** (1 if penalty_widths[i - 1] == 0. else 2)
 
         M[i,j] = c
         return c
@@ -275,7 +262,7 @@ def wrap(fragments: list[Fragment],                 # string or unicode to be wr
     # Apply concave minima algorithm and backtrack to form lines
     cost = OnlineConcaveMinima(penalty, 0)
 
-    pos = len(fragments)
+    pos = n
     breakpoints = [pos]
     while pos:
         pos = cost.index(pos)

@@ -1,45 +1,5 @@
 from PIL import ImageFont
-from vharfbuzz import Vharfbuzz
-from itertools import pairwise
 
-def load_font(fontname):
-    font = ImageFont.truetype(fontname, 2048)
-    # ascent, descent = map(lambda x: x/2048, font.getmetrics())
-    fontfile = font.path
-    vhb = Vharfbuzz(fontfile)
-
-    return vhb
-
-def get_widths(vhb, text):
-    if not text:
-        return
-
-    buf = vhb.shape(text)
-    infos = buf.glyph_infos
-    positions = buf.glyph_positions
-    upem = vhb.hbfont.face.upem
-    prev_x = x = 0.0
-    for (info, pos), (n_info, n_pos) in pairwise(zip(infos, positions)):
-        gid = info.codepoint
-        cluster = info.cluster
-        n_cluster = n_info.cluster
-        x += pos.x_advance / upem
-        char = text[cluster:n_cluster]
-        if gid != 0 and char:
-            yield char, x - prev_x, cluster
-            prev_x = x
-        else:
-            raise ValueError(f"Missing glyph for code {repr(char)}")
-
-    info, pos = infos[-1], positions[-1]
-    gid = info.codepoint
-    cluster = info.cluster
-    x += pos.x_advance / upem
-    char = text[cluster:]
-    if gid != 0 and char:
-        yield char, x - prev_x, cluster
-    else:
-        raise ValueError(f"Missing glyph for code {repr(char)}")
 
 
 
@@ -105,3 +65,7 @@ if __name__ == '__main__':
     medium_long_text = re.sub('\s+', ' ', medium_long_text).strip()
 
     print(list(get_widths(load_font('times.ttf'), medium_long_text)))
+
+    v = load_font('DejaVuSans.ttf')
+    buf = v.shape("ABCj")
+    svg = v.buf_to_svg(buf)

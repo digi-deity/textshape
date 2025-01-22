@@ -1,7 +1,8 @@
 import re
 
-from textshape.wrap import wrap, Fragment
 from hyperhyphen import Hyphenator
+from textshape.shape import FontMeasure
+from textshape.text import Text
 
 TEXTS = [
         """
@@ -64,44 +65,32 @@ TEXTS = [
         """
     ]
 
-TEXTS = [re.sub(r'\s', ' ', x.strip()) for x in TEXTS]
-
-def to_monotype_fragments(text: list[str]) -> list[Fragment]:
-    fragments = []
-    len_text = len(text)
-    for i in range(len(text)):
-        if not text[i].isspace():
-            is_end = (i+1 < len_text) and text[i+1].isspace()
-            fragments.append(Fragment(text[i], len(text[i]), 1 if is_end else 0, 0 if is_end else 1))
-
-    return fragments
-
-def breakpoints_to_string(fragments: list[Fragment], breakpoints: list[int]):
-    lines = []
-    a = breakpoints[0]
-    for i in range(1, len(breakpoints)):
-        line = []
-        b = breakpoints[i]
-        for i in range(a, b):
-            line.append(fragments[i].word)
-            if not i + 1 == b:
-                line.append(' ' * fragments[i].whitespace_width)
-        if fragments[i].penalty_width > 0.0 and i + 1 < len(fragments):
-            line.append('-')
-        lines.append(''.join(line))
-        a = b
-    return lines
+TEXTS = [re.sub(r'\s+', ' ', x.strip()) for x in TEXTS]
 
 def test_longtext_wrap():
-    h = Hyphenator(mode='str')
-    texts = [h(x) for x in TEXTS]
+    h = Hyphenator(mode='spans')
 
     print('\n')
-    for text in texts:
-        fragments = to_monotype_fragments(text)
-        breakpoint =  wrap(fragments, 80)
-        lines = breakpoints_to_string(fragments, breakpoint)
+    for text in TEXTS:
+        ft = Text(text, fragmenter=h)
+        lines = ft.text_lines(80)
         for line in lines:
             if len(line) > 80:
                 print(f'This line is too long ({len(line)}: {line})')
-        print('\n'.join(lines), end='\n\n')
+        print('\n'.join([f'{len(l):02d}:  {l}' for l in lines]), end='\n\n')
+
+def test_wrap_font():
+    h = Hyphenator(mode='spans')
+
+    fontsize = 12
+    width = 800
+
+    fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
+
+    text = TEXTS[-1]
+    ft = Text(text, fragmenter=h, measure=fm)
+    linebreaks, hyphens = ft.wrap(width, fontsize)
+
+    svg = fm.render_svg(text, ft.widths, linebreaks, hyphens, fontsize=fontsize, linewidth=width)
+    with open('text.svg', 'w') as f:
+        f.write(svg)
