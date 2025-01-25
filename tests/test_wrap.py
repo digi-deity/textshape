@@ -84,13 +84,13 @@ def test_wrap_font():
     h = Hyphenator(mode='spans')
 
     fontsize = 12
-    width = 200
+    width = 12*30
 
     fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
 
     text = TEXTS[-1]
     ft = Text(text, fragmenter=h, measure=fm)
-    text, x, dx, y, dy = ft.get_bboxes(width, fontsize)
+    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
     with open('text.svg', 'w') as f:
         f.write(svg)

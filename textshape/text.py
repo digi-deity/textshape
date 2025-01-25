@@ -49,79 +49,108 @@ class Text:
         whitespace = np.zeros(n, dtype=int)
         whitespace[self.end[:m-1]] += 1
         whitespace[self.start[1:]] -= 1
-        self.whitespace = whitespace.cumsum()
+        self.whitespace_mask = whitespace.cumsum()
 
         self.hyphen_width = measure('-')[0]
 
         self.fragments = Fragments(
             fragment_widths[::2],
             np.pad(fragment_widths[1::2], (0, 1)),
-            np.pad(1-self.whitespace[self.end[:m-1]], (0, 1)) * self.hyphen_width,
+            np.pad(1 - self.whitespace_mask[self.end[:m - 1]], (0, 1)) * self.hyphen_width,
         )
 
-    def wrap(self, width: float, fontsize: float) -> tuple[IntVector, BoolVector]:
+    def wrap(self, width: float, fontsize: float) -> tuple[IntVector, IntVector, BoolVector]:
 
         """Wraps the text given a fontsize and a maximum line width.
 
-        Returns a tuple of vector. The first array are the indices for the breakpoints in text string and
-        the second array a boolean mask for the breakpoint vector that indicates whether a hyphen must be used to break.
+        Returns three vector. The first an array indices for the breakpoints in text string, the second an array of indices
+         for breakpoints with whitespace trimmed and the third a boolean vector that indicates whether a hyphen must be used to break.
         """
         width = width / fontsize
-        fragment_breaks = np.array(wrap(self.fragments, width))[1:-1]
-        breakpoints = self.start[fragment_breaks]
-        hyphens = self.fragments.penalty_widths[fragment_breaks-1] > 0
-        return breakpoints, hyphens
+        fragment_breaks = np.array(wrap(self.fragments, width))
+        line_starts = self.start[fragment_breaks[:-1]]
+        line_ends = self.end[fragment_breaks[1:]-1]
+        hyphen_mask = self.fragments.penalty_widths[fragment_breaks[:-1]-1] > 0
+        return line_starts, line_ends, hyphen_mask
 
-    def hyphenate(self, breakpoints) -> str:
+    def justify(self, target_width:float, x: FloatVector, dx_ws: FloatVector, line_starts, line_ends) -> FloatVector:
+        x_ws = np.pad(dx_ws, (1, 0)).cumsum()
+        linewidths = x[line_ends] - x[line_starts]
+        whitewidths = x_ws[line_ends] - x_ws[line_starts]
+        remainders = target_width - linewidths
+        factors = remainders  / whitewidths
+        factors[-1] = 0
+
+        offsets = np.zeros_like(dx_ws)
+        offsets[line_starts] = factors
+        offsets[line_starts[1:]] -= factors[:-1]
+        offsets = offsets.cumsum() * dx_ws
+        return offsets
+
+    def hyphenate_text(self, breakpoints) -> str:
         return '-'.join((self.text[a:b] for a, b in pairwise((0, *breakpoints, len(self.text)))))
 
-    def get_bboxes(self, width: float, fontsize: float):
+    def get_bboxes(self, target_width: float, fontsize: float, justify: bool = False):
         assert isinstance(self.measure, FontMeasure), "Calculating bboxes requires a FontMeasure to precisely measure text."
         text = self.text
-        breakpoints, hyphens = self.wrap(width, fontsize)
+        line_starts, line_ends, hyphen_mask = self.wrap(target_width, fontsize)
 
         fm = self.measure
         widths = self.widths
-        hyphpoints = breakpoints[hyphens]
-        if len(hyphpoints) > 0:
-            text = self.hyphenate(hyphpoints)
-            hyphwidths = np.full(len(hyphpoints), self.hyphen_width)
-            widths = np.insert(widths, hyphpoints, hyphwidths)
+        hyphpoints = line_starts[hyphen_mask]
 
-        breakpoints = self.adjust_breakpoints(breakpoints, hyphens)
+        if len(hyphpoints) > 0:
+            text = self.hyphenate_text(hyphpoints)
+            widths = self.hyph_adjust_chararrays(widths, hyphpoints, self.hyphen_width)
+
+
+        line_starts, line_ends = self.hyph_adjust_linespans(line_starts, line_ends, hyphen_mask)
 
         # Determine height coordinates
         extents = fm.vhb.hbfont.get_font_extents("ltr")
         line_gap = (extents.ascender - extents.descender) / fm.em
-        y = np.zeros(len(widths) + 1, dtype=widths.dtype)
-        y[breakpoints] = -line_gap
+        y = np.zeros(len(widths), dtype=widths.dtype)
+        y[line_starts[1:]] = -line_gap
         y = y.cumsum()
         dy = np.full_like(y, line_gap)
 
         # Determine width coordinates
-        dx = np.pad(widths.cumsum(), (1, 0))
-        resets = np.zeros_like(dx)
-        resets[breakpoints] = np.diff(dx[breakpoints], prepend=0)
-        x = dx - resets.cumsum()
+        dx = widths
+        x = np.pad(dx, (1, 0)).cumsum()
 
-        return text, x, dx, y, dy
+        if justify:
+            ws = self.widths * self.whitespace_mask
+            if len(hyphpoints) > 0:
+                ws = self.hyph_adjust_chararrays(ws, hyphpoints, 0)
+            dx = widths + self.justify(target_width / fontsize, x, ws, line_starts, line_ends)
+            x = np.pad(dx, (1, 0)).cumsum()
+
+        resets = np.zeros_like(x)
+        resets[line_starts[1:]] = np.diff(x[line_starts[1:]], prepend=0)
+        x -= resets.cumsum()
+
+        return text, x[:-1], dx[:-1], y, dy
 
     def get_lines(self, width: float, fontsize: float) -> np.ndarray:
         """Breaks the text into lines."""
+        line_starts, line_ends, hyphen_mask = self.wrap(width, fontsize)
+        text = self.hyphenate_text(line_starts[hyphen_mask])
+        line_starts, line_ends = self.hyph_adjust_linespans(line_starts, line_ends, hyphen_mask)
+        return [text[line_starts[i]:line_ends[i]] for i in range(len(line_starts))]
 
-        breakpoints, hyphens = self.wrap(width, fontsize)
-        text = self.hyphenate(breakpoints[hyphens])
-        breakpoints = self.adjust_breakpoints(breakpoints, hyphens)
-        return [text[a:b].rstrip() for a, b in pairwise((0, *breakpoints, len(self.text)))]
+    def hyph_adjust_chararrays(self, arr, breakpoints, value):
+        inserts = np.full(len(breakpoints), value)
+        return np.insert(arr, breakpoints, inserts)
 
-    def adjust_breakpoints(self, breakpoints, hyphens):
+    def hyph_adjust_linespans(self, line_starts, line_ends, hyphen_mask):
         """Adjust breakpoints for hyphenation"""
 
-        adjustment = np.zeros_like(breakpoints)
-        adjustment[hyphens] += 1
+        adjustment = np.zeros(len(line_starts)+1, dtype=line_starts.dtype)
+        adjustment[:-1][hyphen_mask] += 1
         adjustment = adjustment.cumsum()
-        adj_breakpoints = breakpoints + adjustment
-        return adj_breakpoints
+        line_starts = line_starts + adjustment[:-1]
+        line_ends = line_ends + adjustment[1:]
+        return line_starts, line_ends
 
     def get_fragment_str(self, i: int) -> str:
         return self.text[self.start[i]:self.end[i]]
