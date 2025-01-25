@@ -225,7 +225,7 @@ def wrap(fragments: Fragments,
     cumwidths = np.zeros(n + 1)
     cumwidths[1:] = widths.cumsum() + whitespace_widths.cumsum()
 
-    line_numbers = LineNumbers()
+    #line_numbers = LineNumbers()
 
     M = np.zeros((n + 1, n + 1))
 
@@ -267,5 +267,9 @@ def wrap(fragments: Fragments,
     while pos:
         pos = cost.index(pos)
         breakpoints.append(pos)
+
+    from itertools import pairwise
+    for i,j in pairwise(breakpoints[::-1]):
+        penalty(i, j)
 
     return breakpoints[::-1]

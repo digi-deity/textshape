@@ -74,9 +74,9 @@ def test_longtext_wrap():
     print('\n')
     for text in TEXTS:
         ft = Text(text, fragmenter=h)
-        lines = ft.text_lines(80)
+        lines = ft.get_lines(30, 1)
         for line in lines:
-            if len(line) > 80:
+            if len(line) > 30:
                 print(f'This line is too long ({len(line)}: {line})')
         print('\n'.join([f'{len(l):02d}:  {l}' for l in lines]), end='\n\n')
 
@@ -84,12 +84,19 @@ def test_wrap_font():
     h = Hyphenator(mode='spans')
 
     fontsize = 12
-    width = 800
+    width = 200
 
     fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
 
     text = TEXTS[-1]
     ft = Text(text, fragmenter=h, measure=fm)
+    text, x, dx, y, dy = ft.get_bboxes(width, fontsize)
+    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
+    with open('text.svg', 'w') as f:
+        f.write(svg)
+
+    return
+
     widths = ft.widths
     linebreaks, hyphens = ft.wrap(width, fontsize)
     extents = fm.vhb.hbfont.get_font_extents("ltr")
@@ -103,6 +110,6 @@ def test_wrap_font():
     x = np.pad(x.cumsum(), (1, 0))
 
 
-    svg = fm.render_svg(text, x, y, hyphens, fontsize=fontsize, linewidth=width)
+    svg = fm.render_svg(text, x, y, linebreaks[hyphens], fontsize=fontsize, linewidth=width)
     with open('text.svg', 'w') as f:
         f.write(svg)

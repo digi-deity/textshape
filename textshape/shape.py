@@ -64,8 +64,7 @@ class FontMeasure():
 
         return widths / self.em
 
-    def render_svg(self, text: str, x: FloatVector, y: FloatVector,
-                   hyphens: list[int], fontsize: float, linewidth: float):
+    def render_svg(self, text: str, x: FloatVector, y: FloatVector, fontsize: float, linewidth: float):
         """Converts a buffer to SVG
 
         Args:
@@ -77,19 +76,12 @@ class FontMeasure():
         defs = {}
         paths = []
 
-        hp = deque(hyphens)
-
         buf = self.shape(text)
         vhb = self.vhb
 
 
         x = x * self.em
         y = y * self.em
-
-        hp_next = None if len(hp) == 0 else hp.popleft()
-        buf_hyphen = self.shape('-')
-        info_hyphen = buf_hyphen.glyph_infos[0]
-        pos_hyphen = buf_hyphen.glyph_positions[0]
 
         x_cursor = 0
         y_cursor = 0
@@ -103,13 +95,6 @@ class FontMeasure():
             info = buf.glyph_infos[i]
             pos = buf.glyph_positions[i]
             cluster = info.cluster
-
-            if hp_next and cluster > hp_next:
-                hp_next = hp.popleft() if hp else None
-                info = info_hyphen
-                pos = pos_hyphen
-                i -= 1
-                cluster = -1
 
             if cluster > prev_cluster:
                 x_cursor = x[cluster]
