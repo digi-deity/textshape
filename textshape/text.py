@@ -96,7 +96,8 @@ class Text:
         line_starts, line_ends, hyphen_mask = self.wrap(target_width, fontsize)
 
         fm = self.measure
-        widths = self.widths
+        widths = self.widths.copy()
+
         hyphpoints = line_starts[hyphen_mask]
 
         if len(hyphpoints) > 0:
@@ -128,6 +129,14 @@ class Text:
         resets = np.zeros_like(x)
         resets[line_starts[1:]] = np.diff(x[line_starts[1:]], prepend=0)
         x -= resets.cumsum()
+
+        # Clip mask for zeroing out whitespace at end of lines
+        clip_mask = np.zeros(len(text), dtype=int)
+        clip_mask[line_ends[:-1]] += 1
+        clip_mask[line_starts[1:]] -= 1
+        clip_mask = clip_mask.cumsum().astype(bool)
+        dx[clip_mask] = 0.
+        dy[clip_mask] = 0.
 
         return text, x[:-1] * fontsize, dx * fontsize, y * fontsize, dy * fontsize
 

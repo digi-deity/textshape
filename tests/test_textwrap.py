@@ -113,7 +113,7 @@ def test_wrap_font():
         f.write(svg)
 
 def draw_rect(x, y, dx, dy):
-    return f'<rect width="{dx}" height="{dy}" x="{x}" y="{y}" style="stroke-width:1;stroke:red;" fill-opacity="0"/>'
+    return f'<rect width="{dx:.2f}" height="{dy:.2f}" x="{x:.2f}" y="{y:.2f}"/>'
 
 def test_wrap_font_selection():
     boundaries = re.compile(r'\b[^\s]')
@@ -140,8 +140,13 @@ def test_wrap_font_selection():
     select_y = y[separators]
     select_dy = dy[separators]
 
-    rects = [draw_rect(_x, _y, _dx, _dy) for _x, _y, _dx, _dy in zip(select_x, select_y, select_dx, select_dy)]
-    rects = '\n'.join(rects) + '\n</svg>'
+    rects = [
+        draw_rect(_x, _y, _dx, _dy)
+        for _x, _y, _dx, _dy in zip(select_x, select_y, select_dx, select_dy)
+        if _dx > 0. or _dy > 0
+    ]
+    rects = '\n'.join(rects)
+    rects = f'<g style="stroke-width:1;stroke:red;" fill-opacity="0">\n{rects}\n</g>\n</svg>'
 
     svg = svg.replace('</svg>', rects)
 
