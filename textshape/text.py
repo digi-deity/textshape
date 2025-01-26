@@ -59,8 +59,7 @@ class Text:
             np.pad(1 - self.whitespace_mask[self.end[:m - 1]], (0, 1)) * self.hyphen_width,
         )
 
-    def wrap(self, width: float, fontsize: float) -> tuple[IntVector, IntVector, BoolVector]:
-
+    def wrap(self, width: FloatVector, fontsize: float) -> tuple[IntVector, IntVector, BoolVector]:
         """Wraps the text given a fontsize and a maximum line width.
 
         Returns three vector. The first an array indices for the breakpoints in text string, the second an array of indices
@@ -73,13 +72,14 @@ class Text:
         hyphen_mask = self.fragments.penalty_widths[fragment_breaks[:-1]-1] > 0
         return line_starts, line_ends, hyphen_mask
 
-    def justify(self, target_width:float, x: FloatVector, dx_ws: FloatVector, line_starts, line_ends) -> FloatVector:
+    def justify(self, target_width: FloatVector, x: FloatVector, dx_ws: FloatVector, line_starts, line_ends) -> FloatVector:
         x_ws = np.pad(dx_ws, (1, 0)).cumsum()
         linewidths = x[line_ends] - x[line_starts]
         whitewidths = x_ws[line_ends] - x_ws[line_starts]
         remainders = target_width - linewidths
         factors = remainders  / whitewidths
-        factors[-1] = 0
+        factors[np.isinf(factors)] = 0.
+        factors[-1] = 0.
 
         offsets = np.zeros_like(dx_ws)
         offsets[line_starts] = factors
@@ -90,10 +90,25 @@ class Text:
     def hyphenate_text(self, breakpoints) -> str:
         return '-'.join((self.text[a:b] for a, b in pairwise((0, *breakpoints, len(self.text)))))
 
-    def get_bboxes(self, target_width: float, fontsize: float, justify: bool = False, line_spacing: float = 1) -> tuple[str, FloatVector, FloatVector, FloatVector, FloatVector]:
+    def listify_target_linewidths(self, targets: float | list[float], n: int) -> FloatVector:
+        if isinstance(targets, float | int):
+            targets = [targets]
+
+        targets = np.array(targets, dtype=float)
+
+        if len(targets) >= n:
+            targets = targets[:n]
+        else:
+            targets = np.hstack([targets, targets[-1:].repeat(n - len(targets))])
+
+        return np.array(targets, dtype=float)
+
+    def get_bboxes(self, target_width: float | list[float], fontsize: float, justify: bool = False, line_spacing: float = 1) -> tuple[str, FloatVector, FloatVector, FloatVector, FloatVector]:
         assert isinstance(self.measure, FontMeasure), "Calculating bboxes requires a FontMeasure to precisely measure text."
         text = self.text
         line_starts, line_ends, hyphen_mask = self.wrap(target_width, fontsize)
+
+        target_width = self.listify_target_linewidths(target_width, len(line_starts))
 
         fm = self.measure
         widths = self.widths.copy()
@@ -139,7 +154,7 @@ class Text:
 
         return text, x[:-1] * fontsize, dx * fontsize, y * fontsize, dy * fontsize
 
-    def get_lines(self, width: float, fontsize: float) -> np.ndarray:
+    def get_lines(self, width: float | list[float], fontsize: float) -> np.ndarray:
         """Breaks the text into lines."""
         line_starts, line_ends, hyphen_mask = self.wrap(width, fontsize)
         text = self.hyphenate_text(line_starts[hyphen_mask])

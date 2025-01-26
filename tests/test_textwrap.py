@@ -112,6 +112,37 @@ def test_wrap_font():
     with open('text.svg', 'w') as f:
         f.write(svg)
 
+def test_oneliner():
+    h = Hyphenator(mode='spans')
+
+    fontsize = 12
+    width = 30*fontsize
+
+    fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
+
+    text = "Hello world."
+    ft = Text(text, fragmenter=h, measure=fm)
+    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=False)
+    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
+    with open('text-oneliner.svg', 'w') as f:
+        f.write(svg)
+
+def test_heterogeneous_widths():
+    h = Hyphenator(mode='spans')
+
+    fontsize = 12
+    width = np.hstack([np.arange(10, 47, 2), np.arange(10, 46, 2)[::-1]]) * fontsize
+
+    fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
+
+    text = TEXTS[-1]
+    ft = Text(text, fragmenter=h, measure=fm)
+    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
+    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=46*fontsize)
+    with open('text-heterogeneous.svg', 'w') as f:
+        f.write(svg)
+
+
 def draw_rect(x, y, dx, dy):
     return f'<rect width="{dx:.2f}" height="{dy:.2f}" x="{x:.2f}" y="{y:.2f}"/>'
 

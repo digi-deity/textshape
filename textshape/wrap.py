@@ -210,22 +210,26 @@ class LineNumbers:
         return self.line_numbers[i]
 
 def wrap(fragments: Fragments,
-         target=76,  # maximum length of a wrapped line
-         overflow_penalty=10000,  # penalize long lines by overpen*(len-target)
-         nlinepenalty=1000,  # penalize more lines than optimal
-         short_last_line_fraction=10,  # penalize really short last line
-         short_last_line_penalty=25,  # by this amount
-         hyphen_penalty=15  # penalize hyphenated words
+         targets: float | list[float]=76,  # maximum length of a wrapped line
+         overflow_penalty: float= 10000.,  # penalize long lines by overpen*(len-target)
+         nlinepenalty: float =1000.,  # penalize more lines than optimal
+         short_last_line_fraction:float=10.,  # penalize really short last line
+         short_last_line_penalty:float=25.,  # by this amount
+         hyphen_penalty=15.  # penalize hyphenated words
          ):
     """Wrap the given text, returning a sequence of lines."""
 
     widths, whitespace_widths, penalty_widths = fragments
 
+    if isinstance(targets, int | float):
+        targets = [targets]
+    n_targets = len(targets) - 1
+
     n = len(widths)
     cumwidths = np.zeros(n + 1)
     cumwidths[1:] = widths.cumsum() + whitespace_widths.cumsum()
 
-    #line_numbers = LineNumbers()
+    line_numbers = LineNumbers()
 
     M = np.zeros((n + 1, n + 1))
 
@@ -236,9 +240,8 @@ def wrap(fragments: Fragments,
         if j > n:
             return -i    # concave flag for out of bounds
 
-        #line_number = line_numbers.get(i, cost)
-        line_width = float(target)
-        target_width = max(line_width, 1.0)
+        line_number = line_numbers.get(i, cost)
+        target_width = max(float(targets[min(line_number, n_targets)]), 1.0)
 
         line_width = cumwidths[j] - cumwidths[i] - whitespace_widths[j - 1] + penalty_widths[j - 1]
 
