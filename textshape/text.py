@@ -90,7 +90,7 @@ class Text:
     def hyphenate_text(self, breakpoints) -> str:
         return '-'.join((self.text[a:b] for a, b in pairwise((0, *breakpoints, len(self.text)))))
 
-    def get_bboxes(self, target_width: float, fontsize: float, justify: bool = False) -> tuple[str, FloatVector, FloatVector, FloatVector, FloatVector]:
+    def get_bboxes(self, target_width: float, fontsize: float, justify: bool = False, line_spacing: float = 1) -> tuple[str, FloatVector, FloatVector, FloatVector, FloatVector]:
         assert isinstance(self.measure, FontMeasure), "Calculating bboxes requires a FontMeasure to precisely measure text."
         text = self.text
         line_starts, line_ends, hyphen_mask = self.wrap(target_width, fontsize)
@@ -104,14 +104,13 @@ class Text:
             text = self.hyphenate_text(hyphpoints)
             widths = self.hyph_adjust_chararrays(widths, hyphpoints, self.hyphen_width)
 
-
         line_starts, line_ends = self.hyph_adjust_linespans(line_starts, line_ends, hyphen_mask)
 
         # Determine height coordinates
         extents = fm.vhb.hbfont.get_font_extents("ltr")
         line_gap = (extents.ascender - extents.descender) / fm.em
         y = np.zeros(len(widths), dtype=widths.dtype)
-        y[line_starts[1:]] = -line_gap
+        y[line_starts[1:]] = -line_gap * line_spacing
         y = y.cumsum() + extents.descender / fm.em
         dy = np.full_like(y, line_gap)
 

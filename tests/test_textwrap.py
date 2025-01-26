@@ -126,7 +126,7 @@ def test_wrap_font_selection():
 
     text = TEXTS[-1]
     ft = Text(text, fragmenter=h, measure=fm)
-    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
+    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True, line_spacing=1.2)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
 
     separators = np.array([x.span()[0] for x in boundaries.finditer(text)], dtype=int)
