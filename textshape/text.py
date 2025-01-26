@@ -90,7 +90,7 @@ class Text:
     def hyphenate_text(self, breakpoints) -> str:
         return '-'.join((self.text[a:b] for a, b in pairwise((0, *breakpoints, len(self.text)))))
 
-    def get_bboxes(self, target_width: float, fontsize: float, justify: bool = False):
+    def get_bboxes(self, target_width: float, fontsize: float, justify: bool = False) -> tuple[str, FloatVector, FloatVector, FloatVector, FloatVector]:
         assert isinstance(self.measure, FontMeasure), "Calculating bboxes requires a FontMeasure to precisely measure text."
         text = self.text
         line_starts, line_ends, hyphen_mask = self.wrap(target_width, fontsize)
@@ -111,7 +111,7 @@ class Text:
         line_gap = (extents.ascender - extents.descender) / fm.em
         y = np.zeros(len(widths), dtype=widths.dtype)
         y[line_starts[1:]] = -line_gap
-        y = y.cumsum()
+        y = y.cumsum() + extents.descender / fm.em
         dy = np.full_like(y, line_gap)
 
         # Determine width coordinates
@@ -129,7 +129,7 @@ class Text:
         resets[line_starts[1:]] = np.diff(x[line_starts[1:]], prepend=0)
         x -= resets.cumsum()
 
-        return text, x[:-1], dx[:-1], y, dy
+        return text, x[:-1] * fontsize, dx * fontsize, y * fontsize, dy * fontsize
 
     def get_lines(self, width: float, fontsize: float) -> np.ndarray:
         """Breaks the text into lines."""

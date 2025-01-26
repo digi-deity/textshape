@@ -68,23 +68,25 @@ TEXTS = [
 
 TEXTS = [re.sub(r'\s+', ' ', x.strip()) for x in TEXTS]
 
-def test_longtext_wrap():
+def test_wrap_plaintext():
     h = Hyphenator(mode='spans')
 
     print('\n')
     for text in TEXTS:
         ft = Text(text, fragmenter=h)
         lines = ft.get_lines(30, 1)
-        for line in lines:
-            if len(line) > 30:
-                print(f'This line is too long ({len(line)}: {line})')
+
         print('\n'.join([f'{len(l):02d}:  {l}' for l in lines]), end='\n\n')
 
-def test_wrap_font():
+        for line in lines:
+            assert len(line) <= 30, f'This line is too long with {len(line)} characters: {line}'
+
+
+def test_wrap_font_justified():
     h = Hyphenator(mode='spans')
 
     fontsize = 12
-    width = 12*30
+    width = 30*fontsize
 
     fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
 
@@ -92,24 +94,56 @@ def test_wrap_font():
     ft = Text(text, fragmenter=h, measure=fm)
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
+    with open('text-justified.svg', 'w') as f:
+        f.write(svg)
+
+def test_wrap_font():
+    h = Hyphenator(mode='spans')
+
+    fontsize = 12
+    width = 30*fontsize
+
+    fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
+
+    text = TEXTS[-1]
+    ft = Text(text, fragmenter=h, measure=fm)
+    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=False)
+    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
     with open('text.svg', 'w') as f:
         f.write(svg)
 
-    return
+def draw_rect(x, y, dx, dy):
+    return f'<rect width="{dx}" height="{dy}" x="{x}" y="{y}" style="stroke-width:1;stroke:red;" fill-opacity="0"/>'
 
-    widths = ft.widths
-    linebreaks, hyphens = ft.wrap(width, fontsize)
-    extents = fm.vhb.hbfont.get_font_extents("ltr")
-    line_gap = (extents.line_gap or extents.ascender - extents.descender) / fm.em
-    y = np.zeros_like(widths)
-    y[linebreaks[:-1]] = -line_gap
-    y = np.pad(y.cumsum(), (1, 0))
+def test_wrap_font_selection():
+    boundaries = re.compile(r'\b[^\s]')
+    h = Hyphenator(mode='spans')
 
-    x = widths
-    x[linebreaks[:-1]] -= np.diff(widths.cumsum()[linebreaks[:-1]], prepend=0)
-    x = np.pad(x.cumsum(), (1, 0))
+    fontsize = 12
+    width = 30*fontsize
 
+    fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
 
-    svg = fm.render_svg(text, x, y, linebreaks[hyphens], fontsize=fontsize, linewidth=width)
-    with open('text.svg', 'w') as f:
+    text = TEXTS[-1]
+    ft = Text(text, fragmenter=h, measure=fm)
+    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
+    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
+
+    separators = np.array([x.span()[0] for x in boundaries.finditer(text)], dtype=int)
+    bins = np.zeros(len(text))
+    bins[separators] = 1
+    bins[0] = 0
+    bins = bins.cumsum(dtype=int)
+
+    select_x = x[separators]
+    select_dx = np.bincount(bins, weights=dx, minlength=bins[-1])
+    select_y = y[separators]
+    select_dy = dy[separators]
+
+    rects = [draw_rect(_x, _y, _dx, _dy) for _x, _y, _dx, _dy in zip(select_x, select_y, select_dx, select_dy)]
+    rects = '\n'.join(rects) + '\n</svg>'
+
+    svg = svg.replace('</svg>', rects)
+
+    with open('text-selection.svg', 'w') as f:
         f.write(svg)

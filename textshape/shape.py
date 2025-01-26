@@ -65,12 +65,7 @@ class FontMeasure():
         return widths / self.em
 
     def render_svg(self, text: str, x: FloatVector, y: FloatVector, fontsize: float, linewidth: float):
-        """Converts a buffer to SVG
-
-        Args:
-            buf (hb.Buffer): uharfbuzz ``hb.Buffer``
-
-        Returns: An SVG string containing a rendering of the buffer
+        """Convert a text with character level boundary boxes to an SVG.
         """
 
         defs = {}
@@ -79,9 +74,13 @@ class FontMeasure():
         buf = self.shape(text)
         vhb = self.vhb
 
+        s = fontsize / self.em
+        x = x / s
+        y = y / s
 
-        x = x * self.em
-        y = y * self.em
+        font_extents = vhb.hbfont.get_font_extents("ltr")
+        line_gap = (font_extents.line_gap or font_extents.ascender - font_extents.descender) * s
+        y -= font_extents.descender
 
         x_cursor = 0
         y_cursor = 0
@@ -113,9 +112,6 @@ class FontMeasure():
             i += 1
 
         # Add a empty border and rescale
-        s = fontsize / self.em
-        font_extents = vhb.hbfont.get_font_extents("ltr")
-        line_gap = (font_extents.line_gap or font_extents.ascender - font_extents.descender) * s
 
         x_min = 0
         x_max = linewidth
