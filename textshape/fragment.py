@@ -4,19 +4,18 @@ import numpy as np
 
 from textshape.types import FloatVector, Span
 
-re_words = re.compile(r'\S+')
+re_words = re.compile(r"\S+")
 
 
 class Fragments:
     """The minimum set of data needed to run the line breaking algorithm."""
 
     def __init__(
-            self,
-            widths: np.array,
-            whitespace_widths: np.array,
-            penalty_widths: np.array,
-
-        ):
+        self,
+        widths: np.array,
+        whitespace_widths: np.array,
+        penalty_widths: np.array,
+    ):
         self.widths = widths
         self.whitespace_widths = whitespace_widths
         self.penalty_widths = penalty_widths

@@ -6,7 +6,7 @@ from textshape.shape import FontMeasure
 from textshape.text import Text
 
 TEXTS = [
-        """
+    """
         Whether I shall turn out to be the hero of my own life, or whether that
         station will be held by anybody else, these pages must show. To begin my
         life with the beginning of my life, I record that I was born (as I have
@@ -14,7 +14,7 @@ TEXTS = [
         It was remarked that the clock began to strike, and I began to cry,
         simultaneously.
         """,
-        """
+    """
         In consideration of the day and hour of my birth, it was declared by
         the nurse, and by some sage women in the neighbourhood who had taken a
         lively interest in me several months before there was any possibility
@@ -24,7 +24,7 @@ TEXTS = [
         all unlucky infants of either gender, born towards the small hours on a
         Friday night.
         """,
-        """
+    """
         I need say nothing here, on the first head, because nothing can show
         better than my history whether that prediction was verified or falsified
         by the result. On the second branch of the question, I will only remark,
@@ -33,7 +33,7 @@ TEXTS = [
         having been kept out of this property; and if anybody else should be in
         the present enjoyment of it, he is heartily welcome to keep it.
         """,
-        """
+    """
         I was born with a caul, which was advertised for sale, in the
         newspapers, at the low price of fifteen guineas. Whether sea-going
         people were short of money about that time, or were short of faith and
@@ -63,97 +63,104 @@ TEXTS = [
         objectionable practice. She always returned, with greater emphasis and
         with an instinctive knowledge of the strength of her objection, ‘Let us
         have no meandering.’
-        """
-    ]
+        """,
+]
 
-TEXTS = [re.sub(r'\s+', ' ', x.strip()) for x in TEXTS]
+TEXTS = [re.sub(r"\s+", " ", x.strip()) for x in TEXTS]
+
 
 def test_wrap_plaintext():
-    h = Hyphenator(mode='spans')
+    h = Hyphenator(mode="spans")
 
-    print('\n')
+    print("\n")
     for text in TEXTS:
         ft = Text(text, fragmenter=h)
         lines = ft.get_lines(30, 1)
 
-        print('\n'.join([f'{len(l):02d}:  {l}' for l in lines]), end='\n\n')
+        print("\n".join([f"{len(l):02d}:  {l}" for l in lines]), end="\n\n")
 
         for line in lines:
-            assert len(line) <= 30, f'This line is too long with {len(line)} characters: {line}'
+            assert (
+                len(line) <= 30
+            ), f"This line is too long with {len(line)} characters: {line}"
 
 
 def test_wrap_font_justified():
-    h = Hyphenator(mode='spans')
+    h = Hyphenator(mode="spans")
 
     fontsize = 12
-    width = 30*fontsize
+    width = 30 * fontsize
 
-    fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
+    fm = FontMeasure("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf")
 
     text = TEXTS[-1]
     ft = Text(text, fragmenter=h, measure=fm)
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open('text-justified.svg', 'w') as f:
+    with open("text-justified.svg", "w") as f:
         f.write(svg)
 
+
 def test_wrap_font():
-    h = Hyphenator(mode='spans')
+    h = Hyphenator(mode="spans")
 
     fontsize = 12
-    width = 30*fontsize
+    width = 30 * fontsize
 
-    fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
+    fm = FontMeasure("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf")
 
     text = TEXTS[-1]
     ft = Text(text, fragmenter=h, measure=fm)
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=False)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open('text.svg', 'w') as f:
+    with open("text.svg", "w") as f:
         f.write(svg)
 
+
 def test_oneliner():
-    h = Hyphenator(mode='spans')
+    h = Hyphenator(mode="spans")
 
     fontsize = 12
-    width = 30*fontsize
+    width = 30 * fontsize
 
-    fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
+    fm = FontMeasure("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf")
 
     text = "Hello world."
     ft = Text(text, fragmenter=h, measure=fm)
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=False)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open('text-oneliner.svg', 'w') as f:
+    with open("text-oneliner.svg", "w") as f:
         f.write(svg)
 
+
 def test_heterogeneous_widths():
-    h = Hyphenator(mode='spans')
+    h = Hyphenator(mode="spans")
 
     fontsize = 12
     width = np.hstack([np.arange(10, 47, 2), np.arange(10, 46, 2)[::-1]]) * fontsize
 
-    fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
+    fm = FontMeasure("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf")
 
     text = TEXTS[-1]
     ft = Text(text, fragmenter=h, measure=fm)
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=46*fontsize)
-    with open('text-heterogeneous.svg', 'w') as f:
+    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=46 * fontsize)
+    with open("text-heterogeneous.svg", "w") as f:
         f.write(svg)
 
 
 def draw_rect(x, y, dx, dy):
     return f'<rect width="{dx:.2f}" height="{dy:.2f}" x="{x:.2f}" y="{y:.2f}"/>'
 
+
 def test_wrap_font_selection():
-    boundaries = re.compile(r'\b[^\s]')
-    h = Hyphenator(mode='spans')
+    boundaries = re.compile(r"\b[^\s]")
+    h = Hyphenator(mode="spans")
 
     fontsize = 12
-    width = 30*fontsize
+    width = 30 * fontsize
 
-    fm = FontMeasure('/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf')
+    fm = FontMeasure("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf")
 
     text = TEXTS[-1]
     ft = Text(text, fragmenter=h, measure=fm)
@@ -174,12 +181,12 @@ def test_wrap_font_selection():
     rects = [
         draw_rect(_x, _y, _dx, _dy)
         for _x, _y, _dx, _dy in zip(select_x, select_y, select_dx, select_dy)
-        if _dx > 0. or _dy > 0
+        if _dx > 0.0 or _dy > 0
     ]
-    rects = '\n'.join(rects)
+    rects = "\n".join(rects)
     rects = f'<g style="stroke-width:1;stroke:red;" fill-opacity="0">\n{rects}\n</g>\n</svg>'
 
-    svg = svg.replace('</svg>', rects)
+    svg = svg.replace("</svg>", rects)
 
-    with open('text-selection.svg', 'w') as f:
+    with open("text-selection.svg", "w") as f:
         f.write(svg)

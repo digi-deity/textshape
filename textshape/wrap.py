@@ -46,19 +46,18 @@ def ConcaveMinima(RowIndices, ColIndices, Matrix):
     # Reduce phase: make number of rows at most equal to number of cols
     stack = []
     for r in RowIndices:
-        while len(stack) >= 1 and \
-                Matrix(stack[-1], ColIndices[len(stack) - 1]) \
-                > Matrix(r, ColIndices[len(stack) - 1]):
+        while len(stack) >= 1 and Matrix(
+            stack[-1], ColIndices[len(stack) - 1]
+        ) > Matrix(r, ColIndices[len(stack) - 1]):
             stack.pop()
         if len(stack) != len(ColIndices):
             stack.append(r)
     RowIndices = stack
 
     # Recursive call to search for every odd column
-    minima = ConcaveMinima(RowIndices,
-                           [ColIndices[i]
-                               for i in range(1, len(ColIndices), 2)],
-                           Matrix)
+    minima = ConcaveMinima(
+        RowIndices, [ColIndices[i] for i in range(1, len(ColIndices), 2)], Matrix
+    )
 
     # Go back and fill in the even rows
     r = 0
@@ -80,7 +79,6 @@ def ConcaveMinima(RowIndices, ColIndices, Matrix):
 
 
 class OnlineConcaveMinima:
-
     """
     Online concave minimization algorithm of Galil and Park.
 
@@ -109,9 +107,9 @@ class OnlineConcaveMinima:
         """Initialize a OnlineConcaveMinima object."""
 
         # State used by self.value(), self.index(), and iter(self)
-        self._values = [initial]    # tentative solution values...
-        self._indices = [None]      # ...and their indices
-        self._finished = 0          # index of last non-tentative value
+        self._values = [initial]  # tentative solution values...
+        self._indices = [None]  # ...and their indices
+        self._finished = 0  # index of last non-tentative value
 
         # State used by the internal algorithm
         #
@@ -199,6 +197,7 @@ class OnlineConcaveMinima:
         self._tentative = self._finished = i
         return
 
+
 class LineNumbers:
     def __init__(self):
         self.line_numbers = [0]
@@ -209,14 +208,16 @@ class LineNumbers:
             self.line_numbers.append(line_number)
         return self.line_numbers[i]
 
-def wrap(fragments: Fragments,
-         targets: float | list[float]=76,  # maximum length of a wrapped line
-         overflow_penalty: float= 10000.,  # penalize long lines by overpen*(len-target)
-         nlinepenalty: float =1000.,  # penalize more lines than optimal
-         short_last_line_fraction:float=10.,  # penalize really short last line
-         short_last_line_penalty:float=25.,  # by this amount
-         hyphen_penalty=15.  # penalize hyphenated words
-         ):
+
+def wrap(
+    fragments: Fragments,
+    targets: float | list[float] = 76,  # maximum length of a wrapped line
+    overflow_penalty: float = 10000.0,  # penalize long lines by overpen*(len-target)
+    nlinepenalty: float = 1000.0,  # penalize more lines than optimal
+    short_last_line_fraction: float = 10.0,  # penalize really short last line
+    short_last_line_penalty: float = 25.0,  # by this amount
+    hyphen_penalty=15.0,  # penalize hyphenated words
+):
     """Wrap the given text, returning a sequence of lines."""
 
     widths, whitespace_widths, penalty_widths = fragments
@@ -238,12 +239,17 @@ def wrap(fragments: Fragments,
     # total penalty of all lines up to a break prior to word i.
     def penalty(i, j):
         if j > n:
-            return -i    # concave flag for out of bounds
+            return -i  # concave flag for out of bounds
 
         line_number = line_numbers.get(i, cost)
         target_width = max(float(targets[min(line_number, n_targets)]), 1.0)
 
-        line_width = cumwidths[j] - cumwidths[i] - whitespace_widths[j - 1] + penalty_widths[j - 1]
+        line_width = (
+            cumwidths[j]
+            - cumwidths[i]
+            - whitespace_widths[j - 1]
+            + penalty_widths[j - 1]
+        )
 
         c = cost.value(i) + nlinepenalty
 
@@ -257,9 +263,9 @@ def wrap(fragments: Fragments,
             c += short_last_line_penalty
 
         if penalty_widths[j - 1] > 0.0:
-            c += hyphen_penalty ** (1 if penalty_widths[i - 1] == 0. else 2)
+            c += hyphen_penalty ** (1 if penalty_widths[i - 1] == 0.0 else 2)
 
-        M[i,j] = c
+        M[i, j] = c
         return c
 
     # Apply concave minima algorithm and backtrack to form lines
@@ -272,7 +278,8 @@ def wrap(fragments: Fragments,
         breakpoints.append(pos)
 
     from itertools import pairwise
-    for i,j in pairwise(breakpoints[::-1]):
+
+    for i, j in pairwise(breakpoints[::-1]):
         penalty(i, j)
 
     return breakpoints[::-1]

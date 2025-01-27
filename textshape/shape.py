@@ -6,15 +6,16 @@ from textshape.types import FloatVector
 from typing import Optional
 from collections import deque
 
-class FontMeasure():
+
+class FontMeasure:
     def __init__(self, fontpath: str, features: Optional[dict] = None):
         self.fontpath = fontpath
         self.vhb = Vharfbuzz(fontpath)
-        self.params = {'features': features or {}}
+        self.params = {"features": features or {}}
 
         # em is the unit of measurement for a font
-        self.em = self.vhb.shape('\u2003', self.params).glyph_positions[0].x_advance
-        
+        self.em = self.vhb.shape("\u2003", self.params).glyph_positions[0].x_advance
+
         font_extents = self.vhb.hbfont.get_font_extents("ltr")
         self.ascender = font_extents.ascender / self.em
         self.descender = font_extents.descender / self.em
@@ -28,7 +29,9 @@ class FontMeasure():
 
         return self.vhb.shape(text, self.params)
 
-    def character_widths(self, text, buf: Optional[uharfbuzz.Buffer] = None) -> FloatVector:
+    def character_widths(
+        self, text, buf: Optional[uharfbuzz.Buffer] = None
+    ) -> FloatVector:
         """Maps the shaped glyphs back to input characters to determine the width of each character.
         Width is expressed in em units.
 
@@ -46,12 +49,12 @@ class FontMeasure():
 
         # Handle case where codepoint(s) are merged into fewer glyphs
         diff = np.diff(clusters, append=n)
-        jumps = diff>1
+        jumps = diff > 1
         merge_starts = clusters[jumps]
         merge_lengths = diff[jumps]
 
         for start, length in zip(merge_starts, merge_lengths):
-            widths[start:start+length] = widths[start] / length
+            widths[start : start + length] = widths[start] / length
 
         # Alternatively, this loop can be replaced by fully vectorized functions.
         # However since cluster merges are rare, I think the loop will always be faster.
@@ -64,9 +67,15 @@ class FontMeasure():
 
         return widths / self.em
 
-    def render_svg(self, text: str, x: FloatVector, y: FloatVector, fontsize: float, linewidth: float):
-        """Convert a text with character level boundary boxes to an SVG.
-        """
+    def render_svg(
+        self,
+        text: str,
+        x: FloatVector,
+        y: FloatVector,
+        fontsize: float,
+        linewidth: float,
+    ):
+        """Convert a text with character level boundary boxes to an SVG."""
 
         defs = {}
         paths = []
@@ -79,7 +88,9 @@ class FontMeasure():
         y = y / s
 
         font_extents = vhb.hbfont.get_font_extents("ltr")
-        line_gap = (font_extents.line_gap or font_extents.ascender - font_extents.descender) * s
+        line_gap = (
+            font_extents.line_gap or font_extents.ascender - font_extents.descender
+        ) * s
         y -= font_extents.descender
 
         x_cursor = 0
@@ -103,7 +114,12 @@ class FontMeasure():
                 x_cursor += prev_x_advance
                 y_cursor += prev_y_advance
 
-            p = vhb._glyph_to_svg(info.codepoint, round(x_cursor + pos.x_offset, 2), round(y_cursor + pos.y_offset, 2), defs)
+            p = vhb._glyph_to_svg(
+                info.codepoint,
+                round(x_cursor + pos.x_offset, 2),
+                round(y_cursor + pos.y_offset, 2),
+                defs,
+            )
             paths.append(p)
 
             prev_y_advance = pos.y_advance
@@ -127,7 +143,7 @@ class FontMeasure():
             f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x_min} {y_min} {x_max - x_min} {y_max - y_min}" transform="matrix(1 0 0 -1 0 0)">',
             f'<rect x="{x_min}" y="{y_min}" width="{x_max - x_min}" height="{y_max - y_min}" fill="#BBBBBB"/>',
             f'<rect x="{x_min + line_gap}" y="{y_min + line_gap}" width="{x_max - x_min - 2*line_gap}" height="{y_max - y_min - 2*line_gap}" fill="#FFFFFF"/>',
-            '<defs>',
+            "<defs>",
             *defs.values(),
             "</defs>",
             f'<g transform="scale({s}, {s})">',
@@ -138,6 +154,7 @@ class FontMeasure():
         ]
 
         return "\n".join(svg)
+
 
 def monospace_measure(s: str) -> FloatVector:
     return [1.0] * len(s)
