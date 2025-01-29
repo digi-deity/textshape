@@ -148,6 +148,20 @@ def test_heterogeneous_widths():
     with open("text-heterogeneous.svg", "w") as f:
         f.write(svg)
 
+def test_paragraph_indent():
+    h = Hyphenator(mode="spans")
+    fontsize = 12
+    width = 30 * fontsize
+
+    fm = FontMeasure("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf")
+
+    text = TEXTS[-1]
+    ft = Text(text, fragmenter=h, measure=fm)
+    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True, paragraph_indent=3*fontsize)
+    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
+    with open("text-indent.svg", "w") as f:
+        f.write(svg)
+
 
 def draw_rect(x, y, dx, dy):
     return f'<rect width="{dx:.2f}" height="{dy:.2f}" x="{x:.2f}" y="{y:.2f}"/>'

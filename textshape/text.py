@@ -1,4 +1,4 @@
-from typing import Callable, TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING, Optional
 from collections import deque
 from itertools import pairwise
 
@@ -81,9 +81,11 @@ class Text:
         target_width: FloatVector,
         x: FloatVector,
         dx_ws: FloatVector,
-        line_starts,
-        line_ends,
+        line_starts: IntVector,
+        line_ends: IntVector,
     ) -> FloatVector:
+        """Justify the text such that each
+        """
         x_ws = np.pad(dx_ws, (1, 0)).cumsum()
         linewidths = x[line_ends] - x[line_starts]
         whitewidths = x_ws[line_ends] - x_ws[line_starts]
@@ -104,17 +106,17 @@ class Text:
         )
 
     def listify_target_linewidths(
-        self, targets: float | list[float], n: int
+        self, targets: float | list[float], paragraph_indent: float = 0.0
     ) -> FloatVector:
         if isinstance(targets, float | int):
             targets = [targets]
 
         targets = np.array(targets, dtype=float)
 
-        if len(targets) >= n:
-            targets = targets[:n]
-        else:
-            targets = np.hstack([targets, targets[-1:].repeat(n - len(targets))])
+        if paragraph_indent:
+            if len(targets) == 1:
+                targets = targets.repeat(2)
+            targets[0] -= paragraph_indent
 
         return np.array(targets, dtype=float)
 
@@ -126,14 +128,31 @@ class Text:
         line_spacing: float = 1.0,
         paragraph_indent: float = 0.0,
     ) -> tuple[str, FloatVector, FloatVector, FloatVector, FloatVector]:
+        """Calculate the bounding boxes of the text given a target width and fontsize.
+
+        Returns a tuple containing the (hyphenated) text, and 4 arrays for the x and y coordinates and their respecting widths and heights.
+
+        The target width can be a single float or a list of floats. If a list is provided, the text will be wrapped with different target widths.
+        If the list is shorter than the number of lines, the last target width will be repeated.
+
+        If justify is set to True, the text will be justified.
+
+        line_spacing is the factor by which the line height is multiplied to increase interline spacing.
+
+        paragraph_indent is the indentation of the first line of the paragraph.
+
+        All input and output sizes are expressed in em units.
+        """
+
         assert isinstance(
             self.measure, FontMeasure
         ), "Calculating bboxes requires a FontMeasure to precisely measure text."
         text = self.text
+
+        target_width = self.listify_target_linewidths(target_width, paragraph_indent)
         line_starts, line_ends, hyphen_mask = self.wrap(target_width, fontsize)
 
-        target_width = self.listify_target_linewidths(target_width, len(line_starts))
-
+        target_width = np.pad(target_width, (0, max(0, len(line_starts) - len(target_width))),mode='edge')[:len(line_starts)]
         fm = self.measure
         widths = self.widths.copy()
 
@@ -167,6 +186,9 @@ class Text:
                 target_width / fontsize, x, ws, line_starts, line_ends
             )
             x = np.pad(dx, (1, 0)).cumsum()
+
+        if paragraph_indent > 0.0:
+            x[:line_starts[1]] += paragraph_indent / fontsize
 
         resets = np.zeros_like(x)
         resets[line_starts[1:]] = np.diff(x[line_starts[1:]], prepend=0)
