@@ -2,7 +2,8 @@ import re
 
 import numpy as np
 
-from textshape.types import FloatVector, Span
+from .types import FloatVector, Span
+from typing import Iterable
 
 re_words = re.compile(r"\S+")
 
@@ -12,9 +13,9 @@ class Fragments:
 
     def __init__(
         self,
-        widths: np.array,
-        whitespace_widths: np.array,
-        penalty_widths: np.array,
+        widths: FloatVector,
+        whitespace_widths: FloatVector,
+        penalty_widths: FloatVector,
     ):
         self.widths = widths
         self.whitespace_widths = whitespace_widths
@@ -22,9 +23,6 @@ class Fragments:
 
     def unpack(self) -> tuple[FloatVector, FloatVector, FloatVector]:
         return self.widths, self.whitespace_widths, self.penalty_widths
-
-    def __iter__(self) -> iter:
-        return iter(self.unpack())
 
     def __len__(self) -> int:
         return len(self.widths)

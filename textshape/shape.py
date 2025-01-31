@@ -2,7 +2,7 @@ import numpy as np
 import uharfbuzz
 from vharfbuzz import Vharfbuzz
 
-from textshape.types import FloatVector
+from .types import FloatVector
 from typing import Optional
 from collections import deque
 
@@ -20,17 +20,17 @@ class FontMeasure:
         self.ascender = font_extents.ascender / self.em
         self.descender = font_extents.descender / self.em
 
-    def __call__(self, text) -> FloatVector:
+    def __call__(self, text: str) -> FloatVector:
         return self.character_widths(text)
 
-    def shape(self, text) -> uharfbuzz.Buffer:
+    def shape(self, text: str) -> uharfbuzz.Buffer:
         if not text:
             raise ValueError("No text provided")
 
         return self.vhb.shape(text, self.params)
 
     def character_widths(
-        self, text, buf: Optional[uharfbuzz.Buffer] = None
+        self, text: str, buf: Optional[uharfbuzz.Buffer] = None
     ) -> FloatVector:
         """Maps the shaped glyphs back to input characters to determine the width of each character.
         Width is expressed in em units.
@@ -41,8 +41,8 @@ class FontMeasure:
         buf = buf or self.shape(text)
         n = len(text)
 
-        clusters = np.array([i.cluster for i in buf.glyph_infos])
-        x_advances = np.array([p.x_advance for p in buf.glyph_positions])
+        clusters = np.array([i.cluster for i in buf.glyph_infos], dtype=np.int32)
+        x_advances = np.array([p.x_advance for p in buf.glyph_positions], dtype=np.float32)
 
         # Handle case where codepoint(s) decompose into more glyphs
         widths = np.bincount(clusters, weights=x_advances, minlength=n)
@@ -65,7 +65,7 @@ class FontMeasure:
         # idx = np.maximum.accumulate(idx, dtype=int)
         # widths = widths[idx]
 
-        return widths / self.em
+        return widths / self.em  # type: ignore[no-any-return]
 
     def render_svg(
         self,
@@ -74,10 +74,10 @@ class FontMeasure:
         y: FloatVector,
         fontsize: float,
         linewidth: float,
-    ):
+    ) -> str:
         """Convert a text with character level boundary boxes to an SVG."""
 
-        defs = {}
+        defs: dict[str, str] = {}
         paths = []
 
         buf = self.shape(text)
@@ -157,4 +157,4 @@ class FontMeasure:
 
 
 def monospace_measure(s: str) -> FloatVector:
-    return [1.0] * len(s)
+    return np.array([1.0] * len(s))

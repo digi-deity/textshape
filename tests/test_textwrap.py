@@ -148,6 +148,7 @@ def test_heterogeneous_widths():
     with open("text-heterogeneous.svg", "w") as f:
         f.write(svg)
 
+
 def test_paragraph_indent():
     h = Hyphenator(mode="spans")
     fontsize = 12
@@ -157,7 +158,9 @@ def test_paragraph_indent():
 
     text = TEXTS[-1]
     ft = Text(text, fragmenter=h, measure=fm)
-    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True, paragraph_indent=3*fontsize)
+    text, x, dx, y, dy = ft.get_bboxes(
+        width, fontsize, justify=True, paragraph_indent=3 * fontsize
+    )
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
     with open("text-indent.svg", "w") as f:
         f.write(svg)
