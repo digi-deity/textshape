@@ -8,7 +8,9 @@ from collections import deque
 
 
 class FontMeasure:
-    def __init__(self, fontpath: str, features: Optional[dict] = None):
+    def __init__(
+        self, fontpath: str, features: Optional[dict] = None  # type: ignore[type-arg]
+    ):
         self.fontpath = fontpath
         self.vhb = Vharfbuzz(fontpath)
         self.params = {"features": features or {}}
@@ -42,7 +44,9 @@ class FontMeasure:
         n = len(text)
 
         clusters = np.array([i.cluster for i in buf.glyph_infos], dtype=np.int32)
-        x_advances = np.array([p.x_advance for p in buf.glyph_positions], dtype=np.float32)
+        x_advances = np.array(
+            [p.x_advance for p in buf.glyph_positions], dtype=np.float32
+        )
 
         # Handle case where codepoint(s) decompose into more glyphs
         widths = np.bincount(clusters, weights=x_advances, minlength=n)

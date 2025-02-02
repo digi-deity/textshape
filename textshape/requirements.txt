@@ -1,1 +1,2 @@
-numpy>=2.1.2
+numpy>=2.0.0
+vharfbuzz>=0.3.1

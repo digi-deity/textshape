@@ -10,6 +10,7 @@ class LineNumbers:
 
     This avoids recursively recomputing the line numbers at every cost function call.
     """
+
     line_numbers: list[int]
 
     def __init__(self) -> None:
@@ -24,7 +25,7 @@ class LineNumbers:
 
 def wrap(
     fragments: Fragments,
-    targets: FloatVector = np.array([80.]),  # maximum length of a wrapped line
+    targets: FloatVector = np.array([80.0]),  # maximum length of a wrapped line
     overflow_penalty: float = 10000.0,  # penalize long lines by overpen*(len-target)
     nlinepenalty: float = 1000.0,  # penalize more lines than optimal
     short_last_line_fraction: float = 10.0,  # penalize really short last line
@@ -58,10 +59,7 @@ def wrap(
         target_width = max(float(targets[min(line_number, n_targets)]), 1.0)
 
         line_width = (
-            cwidths[j]
-            - cwidths[i]
-            - whitespace_widths[j - 1]
-            + penalty_widths[j - 1]
+            cwidths[j] - cwidths[i] - whitespace_widths[j - 1] + penalty_widths[j - 1]
         )
 
         c = cost.value(i) + nlinepenalty

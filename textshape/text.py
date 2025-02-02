@@ -1,16 +1,16 @@
-from typing import Callable, TYPE_CHECKING, TypeVar
-from collections import deque
 from itertools import pairwise
+from typing import Callable, TYPE_CHECKING
 
 import numpy as np
 
 from .fragment import Fragments, word_fragmenter
 from .shape import monospace_measure, FontMeasure
-from .types import FloatVector, Span, IntVector, BoolVector, CharInfoVectors, T, Vector
+from .types import FloatVector, Span, IntVector, BoolVector, CharInfoVectors
 from .wrap import wrap
 
 if TYPE_CHECKING:
-    import uharfbuzz.Buffer
+    pass
+
 
 class Text:
     """A class for handling text shaping, wrapping, and justification."""
@@ -124,7 +124,9 @@ class Text:
         )
 
     def vectorize_target_widths(
-        self, targets: int | float | list[float | int] | FloatVector | IntVector, paragraph_indent: float = 0.0
+        self,
+        targets: int | float | list[float | int] | FloatVector | IntVector,
+        paragraph_indent: float = 0.0,
     ) -> FloatVector:
         """Ensure that the target linewidth(s) are in the correct array format and handles paragraph indentation."""
         if isinstance(targets, float | int):
@@ -174,7 +176,9 @@ class Text:
         line_starts, line_ends, hyphen_mask = self.wrap(targets_vector, fontsize)
 
         targets_vector = np.pad(
-            targets_vector, (0, max(0, len(line_starts) - len(targets_vector))), mode="edge"
+            targets_vector,
+            (0, max(0, len(line_starts) - len(targets_vector))),
+            mode="edge",
         )[: len(line_starts)]
         fm = self.measure
         widths = self.widths.copy()
@@ -228,9 +232,9 @@ class Text:
         return text, x[:-1] * fontsize, dx * fontsize, y * fontsize, dy * fontsize  # type: ignore[return-value]
 
     def get_lines(
-            self,
-            target_width: int | float | list[float | int] | FloatVector | IntVector,
-            fontsize: int | float
+        self,
+        target_width: int | float | list[float | int] | FloatVector | IntVector,
+        fontsize: int | float,
     ) -> list[str]:
         """Breaks the text into lines given a target width and fontsize.
 
@@ -246,7 +250,9 @@ class Text:
         )
         return [text[line_starts[i] : line_ends[i]] for i in range(len(line_starts))]
 
-    def hyph_adjust_chararrays(self, arr: FloatVector, breakpoints: IntVector, value: float) -> FloatVector:
+    def hyph_adjust_chararrays(
+        self, arr: FloatVector, breakpoints: IntVector, value: float
+    ) -> FloatVector:
         """Adjust arrays for hyphenation by inserting a value at the hyphenation points
 
         Returns a new array with the value inserted at the breakpoints.
@@ -254,7 +260,9 @@ class Text:
         inserts = np.full(len(breakpoints), value)
         return np.insert(arr, breakpoints, inserts)
 
-    def hyph_adjust_linespans(self, line_starts: IntVector, line_ends: IntVector, hyphen_mask: BoolVector) -> tuple[IntVector, IntVector]:
+    def hyph_adjust_linespans(
+        self, line_starts: IntVector, line_ends: IntVector, hyphen_mask: BoolVector
+    ) -> tuple[IntVector, IntVector]:
         """Adjust line spans for hyphenation by changing the start and end points of lines to match hyphenated text.
 
         Returns a tuple of adjusted line starts and line ends.
