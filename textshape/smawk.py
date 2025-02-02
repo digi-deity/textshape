@@ -16,7 +16,7 @@ This file is licensed under the terms of the MIT License (http://opensource.org/
 Copyright (c) 2002-2015, David Eppstein
 """
 
-from typing import List, Callable, Dict, Tuple, Optional, Sequence, Iterable
+from typing import List, Callable, Dict, Tuple, Sequence, Iterable
 
 
 # Adding types hints to the following function signature:

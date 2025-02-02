@@ -1,9 +1,6 @@
 import re
 
-import numpy as np
-
 from .types import FloatVector, Span
-from typing import Iterable
 
 re_words = re.compile(r"\S+")
 

@@ -1,10 +1,10 @@
+from typing import Optional
+
 import numpy as np
 import uharfbuzz
 from vharfbuzz import Vharfbuzz
 
 from .types import FloatVector
-from typing import Optional
-from collections import deque
 
 
 class FontMeasure:
