@@ -1,11 +1,13 @@
 from hashlib import md5
 import re
 import numpy as np
+import pathlib
 
 from textshape.shape import FontMeasure
 from textshape.text import Text
 
-DUMMY_FONT = './tests/fonts/NotoSans-Regular.ttf'
+DIR = pathlib.Path(__file__).parent.resolve()
+DUMMY_FONT = str(DIR / 'fonts/NotoSans-Regular.ttf')
 
 TEXTS = [
     """
@@ -112,7 +114,7 @@ def test_wrap_font_justified():
     ft = Text(text, fragmenter=h, measure=fm)
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open("text-justified.svg", "w") as f:
+    with open(DIR / "text-justified.svg", "w") as f:
         f.write(svg)
 
 
@@ -128,7 +130,7 @@ def test_wrap_font():
     ft = Text(text, fragmenter=h, measure=fm)
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=False)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open("text.svg", "w") as f:
+    with open(DIR / "text.svg", "w") as f:
         f.write(svg)
 
 
@@ -144,7 +146,7 @@ def test_oneliner():
     ft = Text(text, fragmenter=h, measure=fm)
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=False)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open("text-oneliner.svg", "w") as f:
+    with open(DIR / "text-oneliner.svg", "w") as f:
         f.write(svg)
 
 
@@ -160,7 +162,7 @@ def test_heterogeneous_widths():
     ft = Text(text, fragmenter=h, measure=fm)
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=46 * fontsize)
-    with open("text-heterogeneous.svg", "w") as f:
+    with open(DIR / "text-heterogeneous.svg", "w") as f:
         f.write(svg)
 
 
@@ -177,7 +179,7 @@ def test_paragraph_indent():
         width, fontsize, justify=True, paragraph_indent=3 * fontsize
     )
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open("text-indent.svg", "w") as f:
+    with open(DIR / "text-indent.svg", "w") as f:
         f.write(svg)
 
 
@@ -220,5 +222,5 @@ def test_wrap_font_selection():
 
     svg = svg.replace("</svg>", rects)
 
-    with open("text-selection.svg", "w") as f:
+    with open(DIR / "text-selection.svg", "w") as f:
         f.write(svg)

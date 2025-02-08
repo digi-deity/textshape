@@ -118,13 +118,14 @@ class FontMeasure:
                 x_cursor += prev_x_advance
                 y_cursor += prev_y_advance
 
-            p = vhb._glyph_to_svg(
-                info.codepoint,
-                round(x_cursor + pos.x_offset, 2),
-                round(y_cursor + pos.y_offset, 2),
-                defs,
-            )
-            paths.append(p)
+            if not (info.codepoint == 0 and text[cluster] == "\n"):
+                p = vhb._glyph_to_svg(
+                    info.codepoint,
+                    round(x_cursor + pos.x_offset, 2),
+                    round(y_cursor + pos.y_offset, 2),
+                    defs,
+                )
+                paths.append(p)
 
             prev_y_advance = pos.y_advance
             prev_x_advance = pos.x_advance

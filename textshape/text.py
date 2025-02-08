@@ -1,5 +1,4 @@
-from itertools import pairwise
-from typing import Callable, TYPE_CHECKING
+from typing import Callable
 
 import numpy as np
 
@@ -7,10 +6,6 @@ from .fragment import Fragments, word_fragmenter
 from .shape import monospace_measure, FontMeasure
 from .types import FloatVector, Span, IntVector, BoolVector, CharInfoVectors
 from .wrap import wrap
-
-if TYPE_CHECKING:
-    pass
-
 
 class Text:
     """A class for handling text shaping, wrapping, and justification."""
@@ -87,41 +82,37 @@ class Text:
         fragment_breaks: IntVector = np.array(wrap(self.fragments, width))
         line_starts = self.start[fragment_breaks[:-1]]
         line_ends = self.end[fragment_breaks[1:] - 1]
-        hyphen_mask = self.fragments.penalty_widths[fragment_breaks[:-1] - 1] > 0
+        hyphen_mask = self.fragments.penalty_widths[fragment_breaks[1:] - 1] > 0
         return line_starts, line_ends, hyphen_mask
 
     def justify(
         self,
         target_width: FloatVector,
+        dx: FloatVector,
         x: FloatVector,
         dx_ws: FloatVector,
-        line_starts: IntVector,
-        line_ends: IntVector,
+        ws: FloatVector,
+        linebreaks: IntVector,
     ) -> FloatVector:
         """Justify the text such that each line has the same width.
 
         Returns an array of offsets to be added to the x position of each character.
         """
-        x_ws = np.pad(dx_ws, (1, 0)).cumsum()
-        linewidths = x[line_ends] - x[line_starts]
-        whitewidths = x_ws[line_ends] - x_ws[line_starts]
+        linewidths = np.diff(x[linebreaks], prepend=0)
+        whitewidths = np.diff(ws[linebreaks], prepend=0)
         remainders = target_width - linewidths
         factors = remainders / whitewidths
         factors[np.isinf(factors)] = 0.0
-        factors[-1] = 0.0
+        factors[-1] = 0.0  # last line in paragraph is exempt from justification
 
         offsets = np.zeros_like(dx_ws)
-        offsets[line_starts] = factors
-        offsets[line_starts[1:]] -= factors[:-1]
+        offsets[0] = factors[0]
+        offsets[linebreaks[:-1]] = np.diff(factors)
         offsets = offsets.cumsum() * dx_ws
-        return offsets
 
-    def hyphenate_text(self, breakpoints: IntVector) -> str:
-        """Hyphenate the text at the given breakpoints."""
-
-        return "-".join(
-            (self.text[a:b] for a, b in pairwise((0, *breakpoints, len(self.text))))
-        )
+        dx = dx + offsets
+        x = np.pad(dx, (1, 0)).cumsum()
+        return dx, x
 
     def vectorize_target_widths(
         self,
@@ -170,34 +161,47 @@ class Text:
         assert isinstance(
             self.measure, FontMeasure
         ), "Calculating bboxes requires a FontMeasure to precisely measure text."
-        text = self.text
+        fm = self.measure
+        widths = self.widths
+        text = np.frombuffer(self.text.encode('utf-32-le'), dtype=np.uint32)
+        if len(text) != len(widths): raise ValueError("Text and widths must have the same length. Something went wrong")
+
+        widths = np.hstack([[0.0, self.hyphen_width], widths])
+        text = np.hstack([np.frombuffer('\n-'.encode('utf-32-le'), dtype=np.uint32), text])
 
         targets_vector = self.vectorize_target_widths(target_width, paragraph_indent)
         line_starts, line_ends, hyphen_mask = self.wrap(targets_vector, fontsize)
 
-        targets_vector = np.pad(
-            targets_vector,
-            (0, max(0, len(line_starts) - len(targets_vector))),
-            mode="edge",
-        )[: len(line_starts)]
-        fm = self.measure
-        widths = self.widths.copy()
+        pad = (0, max(0, len(line_starts) - len(targets_vector)))
+        targets_vector = np.pad(targets_vector,pad, mode="edge",)[: len(line_starts)]
 
-        hyphpoints = line_starts[hyphen_mask]
+        # Create a mapping that will be used to construct the newly wrapped text from the original
+        mapping = np.arange(len(text) - 2) + 2
+        mask = np.zeros(len(text) - 2, dtype=np.int32)
+        mask[line_ends[:-1]] += 1
+        mask[line_starts[1:]] -= 1
+        mask = (1 - mask.cumsum()).astype(np.bool)
+        mapping = mapping[mask]
 
-        if len(hyphpoints) > 0:
-            text = self.hyphenate_text(hyphpoints)
-            widths = self.hyph_adjust_chararrays(widths, hyphpoints, self.hyphen_width)
+        # Insert newline characters
+        linebreaks = line_ends - np.cumsum(np.pad(line_starts[1:] - line_ends[:-1], (1, 0)))
+        mapping = np.insert(mapping, linebreaks[:-1], 0)
+        linebreaks[:-1] += np.arange(len(linebreaks) -1 ) + 1
 
-        line_starts, line_ends = self.hyph_adjust_linespans(
-            line_starts, line_ends, hyphen_mask
-        )
+        # Insert hyphens
+        hyphbreaks = linebreaks[hyphen_mask] - 1
+        mapping = np.insert(mapping, hyphbreaks, 1)
+        linebreaks = (linebreaks + np.cumsum(hyphen_mask))
+        linebreaks_ = linebreaks[:-1]
+
+        text = text[mapping].tobytes().decode('utf-32-le')
+        widths = widths[mapping]
 
         # Determine height coordinates
         extents = fm.vhb.hbfont.get_font_extents("ltr")
         line_gap = (extents.ascender - extents.descender) / fm.em
         y = np.zeros_like(widths)
-        y[line_starts[1:]] = -line_gap * line_spacing
+        y[linebreaks_] = -line_gap * line_spacing
         y = y.cumsum() + extents.descender / fm.em
         dy = np.full_like(y, line_gap)
 
@@ -206,28 +210,18 @@ class Text:
         x = np.pad(dx, (1, 0)).cumsum()
 
         if justify:
-            ws = self.widths * self.whitespace_mask
-            if len(hyphpoints) > 0:
-                ws = self.hyph_adjust_chararrays(ws, hyphpoints, 0)
-            dx = widths + self.justify(
-                targets_vector / fontsize, x, ws, line_starts, line_ends
+            dx_ws = widths * self.whitespace_mask[mapping-2]
+            ws = np.pad(dx_ws, (1, 0)).cumsum()
+            dx, x = self.justify(
+                targets_vector / fontsize, dx, x, dx_ws, ws, linebreaks
             )
-            x = np.pad(dx, (1, 0)).cumsum()
-
-        if paragraph_indent > 0.0:
-            x[: line_starts[1]] += paragraph_indent / fontsize
 
         resets = np.zeros_like(x)
-        resets[line_starts[1:]] = np.diff(x[line_starts[1:]], prepend=0)
+        resets[linebreaks_] = np.diff(x[linebreaks_], prepend=0)
         x -= resets.cumsum()
 
-        # Clip mask for zeroing out whitespace at end of lines
-        _clip_mask = np.zeros(len(text), dtype=np.int32)
-        _clip_mask[line_ends[:-1]] += 1
-        _clip_mask[line_starts[1:]] -= 1
-        clip_mask = _clip_mask.cumsum().astype(np.bool)
-        dx[clip_mask] = 0.0
-        dy[clip_mask] = 0.0
+        if paragraph_indent > 0.0:
+            x[: linebreaks[0]] += paragraph_indent / fontsize
 
         return text, x[:-1] * fontsize, dx * fontsize, y * fontsize, dy * fontsize  # type: ignore[return-value]
 
@@ -244,36 +238,8 @@ class Text:
         """
         targets_vector = self.vectorize_target_widths(target_width, 0)
         line_starts, line_ends, hyphen_mask = self.wrap(targets_vector, fontsize)
-        text = self.hyphenate_text(line_starts[hyphen_mask])
-        line_starts, line_ends = self.hyph_adjust_linespans(
-            line_starts, line_ends, hyphen_mask
-        )
-        return [text[line_starts[i] : line_ends[i]] for i in range(len(line_starts))]
+        return [self.text[a:b] + ('-' if h else '') for a, b, h in zip(line_starts, line_ends, hyphen_mask)]
 
-    def hyph_adjust_chararrays(
-        self, arr: FloatVector, breakpoints: IntVector, value: float
-    ) -> FloatVector:
-        """Adjust arrays for hyphenation by inserting a value at the hyphenation points
-
-        Returns a new array with the value inserted at the breakpoints.
-        """
-        inserts = np.full(len(breakpoints), value)
-        return np.insert(arr, breakpoints, inserts)
-
-    def hyph_adjust_linespans(
-        self, line_starts: IntVector, line_ends: IntVector, hyphen_mask: BoolVector
-    ) -> tuple[IntVector, IntVector]:
-        """Adjust line spans for hyphenation by changing the start and end points of lines to match hyphenated text.
-
-        Returns a tuple of adjusted line starts and line ends.
-        """
-
-        adjustment: IntVector = np.zeros(len(line_starts) + 1, dtype=line_starts.dtype)
-        adjustment[:-1][hyphen_mask] += 1
-        adjustment = adjustment.cumsum()
-        line_starts = line_starts + adjustment[:-1]
-        line_ends = line_ends + adjustment[1:]
-        return line_starts, line_ends
 
     def get_fragment_str(self, i: int) -> str:
         """Helper function to get the text representation of the i-th fragment."""
