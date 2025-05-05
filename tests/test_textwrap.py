@@ -101,6 +101,22 @@ def test_wrap_plaintext():
                 len(line) <= 30
             ), f"This line is too long with {len(line)} characters: {line}"
 
+def test_wrap_plaintext_force_newline():
+    h = dummy_fragmenter
+
+    text = '\n\n'.join(TEXTS)
+    ft = Text(text)
+
+    lines = ft.get_lines(30, 1)
+    lines = [l.replace("\n", "") for l in lines]
+
+    print('\n')
+    print("\n".join([f"{len(l):02d}:  {l}" for l in lines]), end="\n\n")
+
+    for line in lines:
+        assert (
+            len(line) <= 30
+        ), f"This line is too long with {len(line)} characters: {line}"
 
 def test_wrap_font_justified():
     h = dummy_fragmenter
@@ -131,6 +147,21 @@ def test_wrap_font():
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=False)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
     with open(DIR / "text.svg", "w") as f:
+        f.write(svg)
+
+def test_wrap_force_newline():
+    h = dummy_fragmenter
+
+    fontsize = 12
+    width = 30 * fontsize
+
+    fm = FontMeasure(DUMMY_FONT)
+
+    text = '\n\n'.join(TEXTS)
+    ft = Text(text, measure=fm)
+    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=False)
+    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
+    with open(DIR / "text-force-newline.svg", "w") as f:
         f.write(svg)
 
 

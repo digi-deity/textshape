@@ -65,13 +65,16 @@ def wrap(
         c = cost.value(i) + nlinepenalty
 
         if line_width > target_width:
-            overflow = line_width - target_width
+            overflow = 1 + line_width - target_width
             c += overflow * overflow_penalty
-        elif j < n:
+        elif penalty_widths[j - 1] < 0.0:
+            # Negative penalty implies a desired line break.
+            # Length of this line is not penalized unless it's too short.
+            if line_width < target_width / short_last_line_fraction:
+                c += short_last_line_penalty
+        else:
             gap = target_width - line_width
             c += gap * gap
-        elif i + 1 == j and line_width < target_width / short_last_line_fraction:
-            c += short_last_line_penalty
 
         if penalty_widths[j - 1] > 0.0:
             c += hyphen_penalty ** (1 if penalty_widths[i - 1] == 0.0 else 2)

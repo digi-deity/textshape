@@ -2,11 +2,17 @@ import re
 
 from .types import FloatVector, Span
 
-re_words = re.compile(r"\S+")
+re_words = re.compile(r"\S+") #|\r?\n")  # matches whole words and newlines
 
 
 class Fragments:
-    """The minimum set of data needed to run the line breaking algorithm."""
+    """A fragment represents an unbreakable piece of visible text and its associated width. Each fragment has a
+    whitespace width value which represents the spacing between that and the next fragment. The penalty width is a
+    special spacing that is only used when the fragment appears at the end of line, for example to reserve space for a
+    hyphen.
+
+    A fragment is the minimum data structure needed to run the line breaking algorithm.
+    """
 
     def __init__(
         self,

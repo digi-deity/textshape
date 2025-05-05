@@ -1,4 +1,5 @@
 from typing import Callable
+import re
 
 import numpy as np
 
@@ -18,6 +19,8 @@ class Text:
     end: IntVector
     whitespace_mask: IntVector
     hyphen_width: float
+
+    re_newline = re.compile(r"\n")
 
     def __init__(
         self,
@@ -49,6 +52,15 @@ class Text:
 
         self.widths = np.array(measure(text), dtype=np.float32)
         spans = np.array(fragmenter(text)).T
+
+        # Create extra fragments for newline characters
+        newlines = np.array([m.start() for m in self.re_newline.finditer(text)])
+        if len(newlines):
+            newline_fragments_idx = np.searchsorted(spans[0], newlines)
+            self.widths[newlines] = 0
+            spans = np.insert(spans, newline_fragments_idx, np.stack([newlines, newlines+1]), axis=1)
+            newline_fragments_idx = newline_fragments_idx + np.arange(len(newlines))
+
         self.start = spans[0]
         self.end = spans[1]
 
@@ -73,9 +85,18 @@ class Text:
         self.fragments = Fragments(
             fragment_widths[::2],
             np.pad(fragment_widths[1::2], (0, 1)),
-            np.pad(1 - self.whitespace_mask[self.end[: m - 1]], (0, 1))
-            * self.hyphen_width,
+            np.pad(self.hyphen_width * (1 - self.whitespace_mask[self.end[: m - 1]]), (0, 1), constant_values=-1)
         )
+
+        # Create conditions for forced linebreaks
+        if len(newlines):
+            self.fragments.whitespace_widths[newline_fragments_idx - 1] = 100000
+            #self.fragments.whitespace_widths[newline_fragments_idx] = 0
+            #self.fragments.penalty_widths[newline_fragments_idx] = 0
+            self.fragments.penalty_widths[newline_fragments_idx - 1] = -1
+            self.fragments.widths[newline_fragments_idx] = 0
+
+
 
     def wrap(
         self, width: FloatVector, fontsize: float
