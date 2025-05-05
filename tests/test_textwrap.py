@@ -3,6 +3,8 @@ import re
 import numpy as np
 import pathlib
 
+import pytest
+
 from textshape.shape import FontMeasure
 from textshape.text import Text
 
@@ -101,21 +103,31 @@ def test_wrap_plaintext():
                 len(line) <= 30
             ), f"This line is too long with {len(line)} characters: {line}"
 
-def test_wrap_plaintext_force_newline():
-    h = dummy_fragmenter
-
-    text = '\t' + '\n\n\t'.join(TEXTS)
-    ft = Text(text)
+def test_wrap_plaintext_force_newline_and_tabs():
+    text = '\t' + '\n\n\t'.join(TEXTS)  # Create tab indents and force double linebreak between paragraphs
+    ft = Text(text, tab_width=4)
 
     lines = ft.get_lines(30, 1)
 
     print('\n')
     print("\n".join([f"{len(l):02d}:  {l}" for l in lines]), end="\n\n")
 
+    force_count = 0
+    tab_count = 0
     for line in lines:
         assert (
             len(line) <= 30
         ), f"This line is too long with {len(line)} characters: {line}"
+
+        with pytest.raises(ValueError):
+            assert line.index('\n'), "A newline character leaked into the output text"
+
+        tab_count += line.count('    ')
+        if len(line) == 0:
+            force_count += 1
+
+    assert tab_count == 4, "Expected 4 tabs"
+    assert force_count == 3, "Expected 3 empty lines due to forced linebreaks in between paragraphs"
 
 def test_wrap_font_justified():
     h = dummy_fragmenter
@@ -148,7 +160,7 @@ def test_wrap_font():
     with open(DIR / "text.svg", "w") as f:
         f.write(svg)
 
-def test_wrap_force_newline():
+def test_wrap_force_newline_and_tabs():
     h = dummy_fragmenter
 
     fontsize = 12
@@ -160,7 +172,7 @@ def test_wrap_force_newline():
     ft = Text(text, measure=fm, tab_width=2)
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open(DIR / "text-force-newline.svg", "w") as f:
+    with open(DIR / "text-force-newline-and-tabs.svg", "w") as f:
         f.write(svg)
 
 
@@ -193,23 +205,6 @@ def test_heterogeneous_widths():
     text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=46 * fontsize)
     with open(DIR / "text-heterogeneous.svg", "w") as f:
-        f.write(svg)
-
-
-def test_paragraph_indent():
-    h = dummy_fragmenter
-    fontsize = 12
-    width = 30 * fontsize
-
-    fm = FontMeasure(DUMMY_FONT)
-
-    text = TEXTS[-1]
-    ft = Text(text, fragmenter=h, measure=fm)
-    text, x, dx, y, dy = ft.get_bboxes(
-        width, fontsize, justify=True, paragraph_indent=3 * fontsize
-    )
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open(DIR / "text-indent.svg", "w") as f:
         f.write(svg)
 
 

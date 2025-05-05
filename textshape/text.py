@@ -58,8 +58,8 @@ class Text:
 
         # Create extra fragments for newline characters or tabs
         nt = np.array([(m.start(), text[m.start()] == '\t') for m in self.re_nt.finditer(text)]).T
-        nt_pos, nt_tab = nt[0], nt[1].astype(bool)
-        if len(nt_pos):
+        if len(nt):
+            nt_pos, nt_tab = nt[0], nt[1].astype(bool)
             nt_fragment_idx = np.searchsorted(spans[0], nt_pos)
             self.widths[nt_pos[nt_tab]] = tab_width
             self.widths[nt_pos[~nt_tab]] = 0
@@ -94,7 +94,7 @@ class Text:
         )
 
         # Create conditions for forced linebreaks and tabs
-        if len(nt_pos):
+        if len(nt):
             self.fragments.whitespace_widths[nt_fragment_idx[nt_tab]] = 0
             self.fragments.whitespace_widths[nt_fragment_idx[~nt_tab] - 1] = 100000
             self.fragments.penalty_widths[nt_fragment_idx[nt_tab]] = 0
