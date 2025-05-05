@@ -22,8 +22,8 @@ class Text:
     def __init__(
         self,
         text: str,
-        measure: Callable[[str], FloatVector] = monospace_measure,
-        fragmenter: Callable[[str], list[Span]] = word_fragmenter,
+        measure: Callable[[str], FloatVector] = None,
+        fragmenter: Callable[[str], list[Span]] = None,
     ):
         """Initializes a Text object with the given text, measure function, and fragmenter function.
 
@@ -31,6 +31,12 @@ class Text:
         The measure function should return an array of character widths in em units.
         The fragmenter function should return a list of spans (start, end) that define the fragments of the text.
         """
+
+        if measure is None:
+            measure = monospace_measure
+
+        if fragmenter is None:
+            fragmenter = word_fragmenter
 
         n = len(text)
         self.text = text
