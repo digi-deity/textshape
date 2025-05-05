@@ -108,7 +108,6 @@ def test_wrap_plaintext_force_newline():
     ft = Text(text)
 
     lines = ft.get_lines(30, 1)
-    lines = [l.replace("\n", "") for l in lines]
 
     print('\n')
     print("\n".join([f"{len(l):02d}:  {l}" for l in lines]), end="\n\n")

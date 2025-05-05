@@ -109,10 +109,11 @@ class Text:
         """
         width = width / fontsize
         fragment_breaks: IntVector = np.array(wrap(self.fragments, width))
-        line_starts = self.start[fragment_breaks[:-1]]
-        line_ends = self.end[fragment_breaks[1:] - 1]
         hyphen_mask = self.fragments.penalty_widths[fragment_breaks[1:] - 1] > 0
         forced_mask = self.fragments.penalty_widths[fragment_breaks[1:] - 1] < 0
+        line_starts = self.start[fragment_breaks[:-1]]
+        line_ends = self.end[fragment_breaks[1:] - 1]
+        line_starts[np.pad(forced_mask[:-1], (1, 0))] += 1  # Exclude the newline characters used for forced linebreaks
         return line_starts, line_ends, hyphen_mask, forced_mask
 
     def justify(
@@ -256,7 +257,7 @@ class Text:
         Returns a list of strings, each representing a line of text no longer than the target width.
         """
         targets_vector = self.vectorize_target_widths(target_width)
-        line_starts, line_ends, hyphen_mask, forced_mask = self.wrap(targets_vector, fontsize)
+        line_starts, line_ends, hyphen_mask, _ = self.wrap(targets_vector, fontsize)
         return [self.text[a:b].replace('\t', ' ' * int(self.tab_width)) + ('-' if h else '') for a, b, h in zip(line_starts, line_ends, hyphen_mask)]
 
 
