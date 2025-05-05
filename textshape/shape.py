@@ -118,7 +118,7 @@ class FontMeasure:
                 x_cursor += prev_x_advance
                 y_cursor += prev_y_advance
 
-            if not (info.codepoint == 0 and text[cluster] == "\n"):
+            if not (info.codepoint == 0 and text[cluster] in ("\n", '\t')):
                 p = vhb._glyph_to_svg(
                     info.codepoint,
                     round(x_cursor + pos.x_offset, 2),

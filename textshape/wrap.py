@@ -59,16 +59,16 @@ def wrap(
         target_width = max(float(targets[min(line_number, n_targets)]), 1.0)
 
         line_width = (
-            cwidths[j] - cwidths[i] - whitespace_widths[j - 1] + penalty_widths[j - 1]
+            cwidths[j] - cwidths[i] - whitespace_widths[j - 1] + max(0, penalty_widths[j - 1])
         )
 
         c = cost.value(i) + nlinepenalty
 
         if line_width > target_width:
-            overflow = 1 + line_width - target_width
-            c += overflow * overflow_penalty
+            overflow = line_width - target_width
+            c += (1 + overflow) * overflow_penalty
         elif penalty_widths[j - 1] < 0.0:
-            # Negative penalty implies a desired line break.
+            # Negative penalty implies a forced line break.
             # Length of this line is not penalized unless it's too short.
             if line_width < target_width / short_last_line_fraction:
                 c += short_last_line_penalty

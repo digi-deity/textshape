@@ -20,19 +20,21 @@ class Text:
     whitespace_mask: IntVector
     hyphen_width: float
 
-    re_newline = re.compile(r"\n")
+    re_nt = re.compile(r"[\n\t]")
 
     def __init__(
         self,
         text: str,
         measure: Callable[[str], FloatVector] = None,
         fragmenter: Callable[[str], list[Span]] = None,
+        tab_width: float | int = 4
     ):
         """Initializes a Text object with the given text, measure function, and fragmenter function.
 
         The text should be a string and cannot start or end with whitespace.
         The measure function should return an array of character widths in em units.
         The fragmenter function should return a list of spans (start, end) that define the fragments of the text.
+        The tab width represents the width of a tab character in em
         """
 
         if measure is None:
@@ -45,21 +47,24 @@ class Text:
         self.text = text
         if not text:
             raise ValueError("Text cannot be empty")
-        elif text[0].isspace() or text[n - 1].isspace():
+        elif (text[0].isspace() and text[0] != '\t') or text[n - 1].isspace():
             raise ValueError("Input text cannot start or end with whitespace.")
 
         self.measure = measure
+        self.tab_width = tab_width
 
         self.widths = np.array(measure(text), dtype=np.float32)
         spans = np.array(fragmenter(text)).T
 
-        # Create extra fragments for newline characters
-        newlines = np.array([m.start() for m in self.re_newline.finditer(text)])
-        if len(newlines):
-            newline_fragments_idx = np.searchsorted(spans[0], newlines)
-            self.widths[newlines] = 0
-            spans = np.insert(spans, newline_fragments_idx, np.stack([newlines, newlines+1]), axis=1)
-            newline_fragments_idx = newline_fragments_idx + np.arange(len(newlines))
+        # Create extra fragments for newline characters or tabs
+        nt = np.array([(m.start(), text[m.start()] == '\t') for m in self.re_nt.finditer(text)]).T
+        nt_pos, nt_tab = nt[0], nt[1].astype(bool)
+        if len(nt_pos):
+            nt_fragment_idx = np.searchsorted(spans[0], nt_pos)
+            self.widths[nt_pos[nt_tab]] = tab_width
+            self.widths[nt_pos[~nt_tab]] = 0
+            spans = np.insert(spans, nt_fragment_idx, np.stack([nt_pos, nt_pos+1]), axis=1)
+            nt_fragment_idx = nt_fragment_idx + np.arange(len(nt_pos))
 
         self.start = spans[0]
         self.end = spans[1]
@@ -88,29 +93,27 @@ class Text:
             np.pad(self.hyphen_width * (1 - self.whitespace_mask[self.end[: m - 1]]), (0, 1), constant_values=-1)
         )
 
-        # Create conditions for forced linebreaks
-        if len(newlines):
-            self.fragments.whitespace_widths[newline_fragments_idx - 1] = 100000
-            #self.fragments.whitespace_widths[newline_fragments_idx] = 0
-            #self.fragments.penalty_widths[newline_fragments_idx] = 0
-            self.fragments.penalty_widths[newline_fragments_idx - 1] = -1
-            self.fragments.widths[newline_fragments_idx] = 0
-
-
+        # Create conditions for forced linebreaks and tabs
+        if len(nt_pos):
+            self.fragments.whitespace_widths[nt_fragment_idx[nt_tab]] = 0
+            self.fragments.whitespace_widths[nt_fragment_idx[~nt_tab] - 1] = 100000
+            self.fragments.penalty_widths[nt_fragment_idx[nt_tab]] = 0
+            self.fragments.penalty_widths[nt_fragment_idx[~nt_tab] - 1] = -1
 
     def wrap(
         self, width: FloatVector, fontsize: float
     ) -> tuple[IntVector, IntVector, BoolVector]:
         """Wraps the text given a fontsize and a maximum line width.
 
-        Returns a tuple of arrays containing the start and end indices of each line, and a boolean array indicating whether a hyphen is needed to break that line..
+        Returns a tuple of arrays containing the start and end indices of each line, and a boolean array indicating whether a hyphen is needed to break that line.
         """
         width = width / fontsize
         fragment_breaks: IntVector = np.array(wrap(self.fragments, width))
         line_starts = self.start[fragment_breaks[:-1]]
         line_ends = self.end[fragment_breaks[1:] - 1]
         hyphen_mask = self.fragments.penalty_widths[fragment_breaks[1:] - 1] > 0
-        return line_starts, line_ends, hyphen_mask
+        forced_mask = self.fragments.penalty_widths[fragment_breaks[1:] - 1] < 0
+        return line_starts, line_ends, hyphen_mask, forced_mask
 
     def justify(
         self,
@@ -120,6 +123,7 @@ class Text:
         dx_ws: FloatVector,
         ws: FloatVector,
         linebreaks: IntVector,
+        forced_mask: BoolVector
     ) -> FloatVector:
         """Justify the text such that each line has the same width.
 
@@ -130,7 +134,7 @@ class Text:
         remainders = target_width - linewidths
         factors = remainders / whitewidths
         factors[np.isinf(factors)] = 0.0
-        factors[-1] = 0.0  # last line in paragraph is exempt from justification
+        factors[forced_mask] = 0.0  # No justification in last line of paragraph with a forced line break
 
         offsets = np.zeros_like(dx_ws)
         offsets[0] = factors[0]
@@ -144,18 +148,12 @@ class Text:
     def vectorize_target_widths(
         self,
         targets: int | float | list[float | int] | FloatVector | IntVector,
-        paragraph_indent: float = 0.0,
     ) -> FloatVector:
-        """Ensure that the target linewidth(s) are in the correct array format and handles paragraph indentation."""
+        """Ensure that the target linewidth(s) are in the correct array format."""
         if isinstance(targets, float | int):
             targets = [targets]
 
         targets_vector = np.array(targets, dtype=float)
-
-        if paragraph_indent:
-            if len(targets_vector) == 1:
-                targets_vector = targets_vector.repeat(2)
-            targets_vector[0] -= paragraph_indent
 
         return targets_vector
 
@@ -165,7 +163,6 @@ class Text:
         fontsize: float,
         justify: bool = False,
         line_spacing: float = 1.0,
-        paragraph_indent: float = 0.0,
     ) -> CharInfoVectors:
         """Calculate the bounding boxes of the text given a target width and fontsize.
 
@@ -177,8 +174,6 @@ class Text:
         If justify is set to True, the text will be justified.
 
         line_spacing is the factor by which the line height is multiplied to increase interline spacing.
-
-        paragraph_indent is the indentation of the first line of the paragraph.
 
         All input and output sizes are expressed in em units.
 
@@ -196,8 +191,8 @@ class Text:
         widths = np.hstack([[0.0, self.hyphen_width], widths])
         text = np.hstack([np.frombuffer('\n-'.encode('utf-32-le'), dtype=np.uint32), text])
 
-        targets_vector = self.vectorize_target_widths(target_width, paragraph_indent)
-        line_starts, line_ends, hyphen_mask = self.wrap(targets_vector, fontsize)
+        targets_vector = self.vectorize_target_widths(target_width)
+        line_starts, line_ends, hyphen_mask, forced_mask = self.wrap(targets_vector, fontsize)
 
         pad = (0, max(0, len(line_starts) - len(targets_vector)))
         targets_vector = np.pad(targets_vector,pad, mode="edge",)[: len(line_starts)]
@@ -240,15 +235,12 @@ class Text:
             dx_ws = widths * self.whitespace_mask[mapping-2]
             ws = np.pad(dx_ws, (1, 0)).cumsum()
             dx, x = self.justify(
-                targets_vector / fontsize, dx, x, dx_ws, ws, linebreaks
+                targets_vector / fontsize, dx, x, dx_ws, ws, linebreaks, forced_mask
             )
 
         resets = np.zeros_like(x)
         resets[linebreaks_] = np.diff(x[linebreaks_], prepend=0)
         x -= resets.cumsum()
-
-        if paragraph_indent > 0.0:
-            x[: linebreaks[0]] += paragraph_indent / fontsize
 
         return text, x[:-1] * fontsize, dx * fontsize, y * fontsize, dy * fontsize  # type: ignore[return-value]
 
@@ -263,9 +255,9 @@ class Text:
 
         Returns a list of strings, each representing a line of text no longer than the target width.
         """
-        targets_vector = self.vectorize_target_widths(target_width, 0)
-        line_starts, line_ends, hyphen_mask = self.wrap(targets_vector, fontsize)
-        return [self.text[a:b] + ('-' if h else '') for a, b, h in zip(line_starts, line_ends, hyphen_mask)]
+        targets_vector = self.vectorize_target_widths(target_width)
+        line_starts, line_ends, hyphen_mask, forced_mask = self.wrap(targets_vector, fontsize)
+        return [self.text[a:b].replace('\t', ' ' * int(self.tab_width)) + ('-' if h else '') for a, b, h in zip(line_starts, line_ends, hyphen_mask)]
 
 
     def get_fragment_str(self, i: int) -> str:
