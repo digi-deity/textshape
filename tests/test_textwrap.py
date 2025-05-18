@@ -6,7 +6,7 @@ import pathlib
 import pytest
 
 from textshape.shape import FontMeasure
-from textshape.text import Text
+from textshape.fragment import TextFragmenter, TextColumn
 
 DIR = pathlib.Path(__file__).parent.resolve()
 DUMMY_FONT = str(DIR / 'fonts/NotoSans-Regular.ttf')
@@ -81,7 +81,9 @@ TEXTS_SPANS = {
     'fd57da8da14c36eeb53d7789f81da094': [(0, 1), (2, 5), (6, 10), (11, 15), (16, 17), (18, 23), (24, 29), (30, 33), (34, 39), (39, 44), (45, 48), (49, 54), (55, 57), (58, 61), (62, 66), (66, 68), (68, 73), (74, 76), (77, 80), (81, 84), (85, 90), (91, 93), (94, 101), (102, 110), (111, 118), (119, 125), (125, 128), (129, 135), (136, 140), (141, 146), (147, 149), (150, 155), (156, 161), (162, 166), (167, 172), (173, 175), (176, 180), (181, 186), (187, 189), (190, 195), (196, 199), (200, 209), (210, 214), (215, 219), (219, 223), (224, 225), (226, 231), (232, 237), (238, 241), (242, 243), (244, 248), (249, 252), (253, 257), (258, 263), (264, 267), (268, 271), (272, 275), (276, 280), (280, 284), (285, 293), (294, 297), (298, 302), (303, 306), (307, 311), (312, 314), (315, 320), (320, 323), (324, 333), (334, 338), (339, 342), (343, 355), (356, 360), (360, 365), (366, 369), (370, 377), (378, 381), (382, 388), (389, 391), (392, 397), (398, 401), (402, 405), (406, 413), (414, 416), (417, 421), (421, 424), (425, 428), (429, 437), (438, 440), (441, 443), (444, 448), (448, 450), (450, 454), (455, 459), (460, 465), (465, 468), (469, 471), (472, 475), (476, 482), (483, 491), (492, 497), (497, 504), (505, 508), (509, 514), (514, 518), (518, 522), (523, 526), (527, 531), (531, 536), (537, 539), (540, 541), (542, 546), (547, 556), (557, 559), (560, 562), (563, 567), (567, 570), (571, 573), (574, 578), (579, 583), (584, 592), (593, 596), (597, 603), (604, 607), (608, 610), (611, 614), (615, 621), (622, 631), (632, 635), (636, 641), (642, 647), (647, 653), (654, 657), (658, 662), (663, 666), (667, 670), (671, 673), (674, 676), (677, 678), (679, 685), (686, 690), (691, 693), (694, 697), (698, 702), (703, 705), (706, 709), (710, 714), (714, 718), (719, 721), (722, 727), (728, 735), (736, 738), (739, 751), (752, 753), (754, 759), (760, 763), (764, 770), (771, 773), (774, 779), (780, 784), (785, 795), (796, 797), (798, 801), (802, 809), (810, 817), (818, 821), (822, 823), (824, 829), (829, 832), (833, 835), (836, 840), (841, 845), (846, 851), (852, 857), (857, 861), (861, 865), (866, 869), (870, 879), (880, 882), (883, 884), (885, 889), (890, 892), (893, 899), (900, 905), (906, 914), (915, 917), (918, 920), (921, 925), (926, 930), (931, 934), (935, 939), (940, 943), (944, 948), (949, 950), (951, 956), (956, 961), (962, 964), (965, 967), (968, 971), (972, 976), (977, 981), (982, 983), (984, 992), (992, 996), (997, 1001), (1002, 1006), (1007, 1012), (1012, 1016), (1016, 1019), (1020, 1028), (1029, 1033), (1034, 1036), (1037, 1040), (1041, 1045), (1045, 1046), (1046, 1051), (1052, 1056), (1057, 1067), (1068, 1071), (1072, 1074), (1075, 1079), (1079, 1085), (1086, 1089), (1090, 1098), (1099, 1103), (1103, 1108), (1109, 1118), (1119, 1121), (1122, 1126), (1127, 1129), (1130, 1137), (1138, 1142), (1143, 1146), (1147, 1148), (1149, 1154), (1155, 1160), (1161, 1163), (1164, 1169), (1169, 1175), (1176, 1178), (1179, 1185), (1185, 1188), (1189, 1193), (1193, 1196), (1197, 1200), (1201, 1207), (1208, 1210), (1211, 1216), (1217, 1219), (1220, 1224), (1225, 1227), (1228, 1230), (1231, 1232), (1233, 1237), (1238, 1243), (1244, 1248), (1249, 1251), (1252, 1256), (1257, 1262), (1262, 1267), (1268, 1270), (1271, 1277), (1277, 1281), (1282, 1286), (1287, 1293), (1294, 1298), (1299, 1302), (1303, 1306), (1307, 1312), (1313, 1321), (1322, 1325), (1326, 1330), (1331, 1343), (1344, 1346), (1347, 1351), (1352, 1354), (1355, 1366), (1367, 1368), (1369, 1373), (1374, 1379), (1379, 1384), (1385, 1389), (1390, 1392), (1393, 1397), (1398, 1400), (1401, 1404), (1405, 1410), (1411, 1414), (1415, 1420), (1420, 1423), (1424, 1430), (1431, 1435), (1436, 1439), (1440, 1445), (1446, 1449), (1450, 1454), (1455, 1457), (1458, 1461), (1462, 1467), (1468, 1470), (1471, 1474), (1475, 1480), (1481, 1487), (1488, 1492), (1493, 1494), (1495, 1502), (1503, 1506), (1507, 1511), (1512, 1516), (1517, 1520), (1521, 1524), (1525, 1528), (1529, 1534), (1535, 1538), (1539, 1542), (1543, 1552), (1553, 1561), (1562, 1566), (1567, 1569), (1570, 1573), (1574, 1579), (1580, 1589), (1590, 1593), (1594, 1599), (1599, 1601), (1601, 1605), (1606, 1608), (1609, 1612), (1613, 1617), (1617, 1620), (1621, 1623), (1624, 1632), (1633, 1636), (1637, 1644), (1645, 1648), (1649, 1652), (1653, 1656), (1657, 1664), (1664, 1668), (1669, 1671), (1672, 1674), (1675, 1680), (1680, 1683), (1683, 1687), (1688, 1693), (1694, 1697), (1698, 1704), (1705, 1707), (1708, 1711), (1712, 1714), (1715, 1719), (1720, 1722), (1723, 1728), (1728, 1732), (1733, 1735), (1736, 1739), (1740, 1744), (1745, 1749), (1750, 1755), (1755, 1763), (1764, 1767), (1768, 1775), (1776, 1782), (1782, 1785), (1786, 1794), (1795, 1799), (1800, 1804), (1805, 1810), (1810, 1814), (1814, 1818), (1819, 1823), (1823, 1828), (1829, 1832), (1833, 1839), (1840, 1849), (1850, 1854), (1855, 1862), (1863, 1868), (1868, 1871), (1872, 1875), (1876, 1880), (1881, 1883), (1884, 1891), (1891, 1895), (1896, 1901), (1901, 1905), (1906, 1908), (1909, 1912), (1913, 1921), (1922, 1924), (1925, 1928), (1929, 1934), (1934, 1939), (1940, 1944), (1945, 1947), (1948, 1952), (1953, 1955), (1956, 1960), (1960, 1963), (1963, 1968)]
 }
 
-def dummy_fragmenter(text):
+def dummy_splitter(text):
+    """Split the test text into words and spaces using hardcoded splits."""
+
     try:
         return TEXTS_SPANS[md5(text.encode()).hexdigest()]
     except KeyError as e:
@@ -89,12 +91,13 @@ def dummy_fragmenter(text):
 
 
 def test_wrap_plaintext():
-    h = dummy_fragmenter
+    f = TextFragmenter(splitter=dummy_splitter)
 
     print("\n")
     for text in TEXTS:
-        ft = Text(text, fragmenter=h)
-        lines = ft.get_lines(30, 1)
+        fragments = f(text)
+        column = TextColumn(fragments, column_width=30, fontsize=1)
+        lines = column.to_list()
 
         print("\n".join([f"{len(l):02d}:  {l}" for l in lines]), end="\n\n")
 
@@ -105,9 +108,11 @@ def test_wrap_plaintext():
 
 def test_wrap_plaintext_force_newline_and_tabs():
     text = '\t' + '\n\n\t'.join(TEXTS)  # Create tab indents and force double linebreak between paragraphs
-    ft = Text(text, tab_width=4)
 
-    lines = ft.get_lines(30, 1)
+    f = TextFragmenter()
+    fragments = f(text)
+    column = TextColumn(fragments, column_width=30, fontsize=1)
+    lines = column.to_list()
 
     print('\n')
     print("\n".join([f"{len(l):02d}:  {l}" for l in lines]), end="\n\n")
@@ -129,82 +134,85 @@ def test_wrap_plaintext_force_newline_and_tabs():
     assert tab_count == 4, "Expected 4 tabs"
     assert force_count == 3, "Expected 3 empty lines due to forced linebreaks in between paragraphs"
 
-def test_wrap_font_justified():
-    h = dummy_fragmenter
-
-    fontsize = 12
-    width = 30 * fontsize
-
-    fm = FontMeasure(DUMMY_FONT)
-
-    text = TEXTS[-1]
-    ft = Text(text, fragmenter=h, measure=fm)
-    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open(DIR / "text-justified.svg", "w") as f:
-        f.write(svg)
-
-
-def test_wrap_font():
-    h = dummy_fragmenter
-
-    fontsize = 12
-    width = 30 * fontsize
-
-    fm = FontMeasure(DUMMY_FONT)
-
-    text = TEXTS[-1]
-    ft = Text(text, fragmenter=h, measure=fm)
-    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=False)
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open(DIR / "text.svg", "w") as f:
-        f.write(svg)
-
-def test_wrap_force_newline_and_tabs():
-    h = dummy_fragmenter
-
-    fontsize = 12
-    width = 30 * fontsize
-
-    fm = FontMeasure(DUMMY_FONT)
-
-    text = '\t' + '\n\n\t'.join(TEXTS)
-    ft = Text(text, measure=fm, tab_width=2)
-    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
-    with open(DIR / "text-force-newline-and-tabs.svg", "w") as f:
-        f.write(svg)
-
-
 def test_oneliner():
-    h = dummy_fragmenter
+    text = "Hello world."
 
     fontsize = 12
     width = 30 * fontsize
-
     fm = FontMeasure(DUMMY_FONT)
 
-    text = "Hello world."
-    ft = Text(text, fragmenter=h, measure=fm)
-    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=False)
+    f = TextFragmenter(measure=fm, splitter=dummy_splitter)
+    fragments = f(text)
+    column = TextColumn(fragments, column_width=width, fontsize=fontsize)
+    text, x, dx, y, dy = column.to_bounding_boxes()
+
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
     with open(DIR / "text-oneliner.svg", "w") as f:
         f.write(svg)
 
+def test_wrap_font():
+    text = TEXTS[-1]
+
+    fontsize = 12
+    width = 30 * fontsize
+    fm = FontMeasure(DUMMY_FONT)
+
+    f = TextFragmenter(measure=fm, splitter=dummy_splitter)
+    fragments = f(text)
+    column = TextColumn(fragments, column_width=width, fontsize=fontsize)
+
+    text, x, dx, y, dy = column.to_bounding_boxes(justify=False)
+    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
+    with open(DIR / "text.svg", "w") as f:
+        f.write(svg)
+
+
+def test_wrap_font_justified():
+    text = TEXTS[-1]
+
+    fontsize = 12
+    width = 30 * fontsize
+    fm = FontMeasure(DUMMY_FONT)
+
+    f = TextFragmenter(measure=fm, splitter=dummy_splitter)
+    fragments = f(text)
+    column = TextColumn(fragments, column_width=width, fontsize=fontsize)
+
+    text, x, dx, y, dy = column.to_bounding_boxes(justify=True)
+    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
+    with open(DIR / "text-justified.svg", "w") as f:
+        f.write(svg)
 
 def test_heterogeneous_widths():
-    h = dummy_fragmenter
+    text = TEXTS[-1]
 
     fontsize = 12
     width = np.hstack([np.arange(10, 47, 2), np.arange(10, 46, 2)[::-1]]) * fontsize
-
     fm = FontMeasure(DUMMY_FONT)
 
-    text = TEXTS[-1]
-    ft = Text(text, fragmenter=h, measure=fm)
-    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True)
+    f = TextFragmenter(measure=fm, splitter=dummy_splitter)
+    fragments = f(text)
+    column = TextColumn(fragments, column_width=width, fontsize=fontsize)
+
+    text, x, dx, y, dy = column.to_bounding_boxes(justify=True)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=46 * fontsize)
     with open(DIR / "text-heterogeneous.svg", "w") as f:
+        f.write(svg)
+
+def test_wrap_force_newline_and_tabs():
+    text = '\t' + '\n\n\t'.join(TEXTS)
+
+    fontsize = 12
+    width = 30 * fontsize
+    fm = FontMeasure(DUMMY_FONT)
+
+    f = TextFragmenter(measure=fm, tab_width=1)
+    fragments = f(text)
+    column = TextColumn(fragments, column_width=width, fontsize=fontsize)
+
+    text, x, dx, y, dy = column.to_bounding_boxes(justify=True)
+    svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
+    with open(DIR / "text-force-newline-and-tabs.svg", "w") as f:
         f.write(svg)
 
 
@@ -213,19 +221,20 @@ def draw_rect(x, y, dx, dy):
 
 
 def test_wrap_font_selection():
-    boundaries = re.compile(r"\b[^\s]")
-    h = dummy_fragmenter
+    text = TEXTS[-1]
 
     fontsize = 12
     width = 30 * fontsize
-
     fm = FontMeasure(DUMMY_FONT)
 
-    text = TEXTS[-1]
-    ft = Text(text, fragmenter=h, measure=fm)
-    text, x, dx, y, dy = ft.get_bboxes(width, fontsize, justify=True, line_spacing=1.2)
+    f = TextFragmenter(measure=fm, splitter=dummy_splitter)
+    fragments = f(text)
+    column = TextColumn(fragments, column_width=width, fontsize=fontsize)
+
+    text, x, dx, y, dy = column.to_bounding_boxes(justify=True, line_spacing=1.2)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
 
+    boundaries = re.compile(r"\b[^\s]")
     separators = np.array([x.span()[0] for x in boundaries.finditer(text)], dtype=int)
     bins = np.zeros(len(text))
     bins[separators] = 1

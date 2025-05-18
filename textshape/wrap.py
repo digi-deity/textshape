@@ -1,6 +1,5 @@
 import numpy as np
 
-from .fragment import Fragments
 from .smawk import OnlineConcaveMinima
 from .types import IntVector, FloatVector
 
@@ -23,8 +22,29 @@ class LineNumbers:
         return self.line_numbers[i]
 
 
+class TextFragmentsBase:
+    """This class is the minimum data structure for text required to run the line breaking (wrapping) algorithm.
+    """
+
+    def __init__(
+        self,
+        widths: FloatVector,
+        whitespace_widths: FloatVector,
+        penalty_widths: FloatVector,
+    ):
+        self.widths = widths
+        self.whitespace_widths = whitespace_widths
+        self.penalty_widths = penalty_widths
+
+    def unpack(self) -> tuple[FloatVector, FloatVector, FloatVector]:
+        return self.widths, self.whitespace_widths, self.penalty_widths
+
+    def __len__(self) -> int:
+        return len(self.widths)
+
+
 def wrap(
-    fragments: Fragments,
+    fragments: TextFragmentsBase,
     targets: FloatVector = np.array([80.0]),  # maximum length of a wrapped line
     overflow_penalty: float = 10000.0,  # penalize long lines by overpen*(len-target)
     nlinepenalty: float = 1000.0,  # penalize more lines than optimal
