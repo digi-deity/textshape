@@ -6,7 +6,8 @@ import pathlib
 import pytest
 
 from textshape.shape import FontMeasure
-from textshape.fragment import TextFragmenter, TextColumn
+from textshape.fragment import TextFragmenter
+from textshape import TextColumn
 
 DIR = pathlib.Path(__file__).parent.resolve()
 DUMMY_FONT = str(DIR / 'fonts/NotoSans-Regular.ttf')
@@ -234,7 +235,7 @@ def test_wrap_font_selection():
     text, x, dx, y, dy = column.to_bounding_boxes(justify=True, line_spacing=1.2)
     svg = fm.render_svg(text, x, y, fontsize=fontsize, linewidth=width)
 
-    boundaries = re.compile(r"\b[^\s]")
+    boundaries = re.compile(r"\t|\b[^\s]")
     separators = np.array([x.span()[0] for x in boundaries.finditer(text)], dtype=int)
     bins = np.zeros(len(text))
     bins[separators] = 1
