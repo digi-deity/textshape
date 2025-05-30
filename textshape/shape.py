@@ -21,6 +21,7 @@ class FontMeasure:
         font_extents = self.vhb.hbfont.get_font_extents("ltr")
         self.ascender = font_extents.ascender / self.em
         self.descender = font_extents.descender / self.em
+        self.line_gap = self.ascender - self.descender
 
     def __call__(self, text: str) -> FloatVector:
         return self.character_widths(text)
@@ -77,7 +78,8 @@ class FontMeasure:
         x: FloatVector,
         y: FloatVector,
         fontsize: float,
-        linewidth: float,
+        canvas_width: float,
+        canvas_height: Optional[float] = None,
     ) -> str:
         """Convert a text with character level boundary boxes to an SVG."""
 
@@ -133,11 +135,13 @@ class FontMeasure:
             i += 1
 
         # Add a empty border and rescale
-
         x_min = 0
-        x_max = linewidth
-        y_max = font_extents.ascender * s
-        y_min = (y[-1] + font_extents.descender) * s
+        y_max = 0
+        x_max = canvas_width
+        if canvas_height is not None:
+            y_min = -canvas_height
+        else:
+            y_min = (y.min() + font_extents.descender) * s
 
         x_min = x_min - line_gap
         y_min = y_min - line_gap

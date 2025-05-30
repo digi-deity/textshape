@@ -8,8 +8,7 @@ from .shape import FontMeasure, monospace_measure
 from .types import FloatVector, Span, IntVector
 from .wrap import TextFragmentsBase
 
-re_words = re.compile(r"\S+") #|\r?\n")  # matches whole words and newlines
-
+re_words = re.compile(r"\S+")  # matches whole words
 
 def word_splitter(s: str) -> list[Span]:
     return [m.span() for m in re_words.finditer(s)]

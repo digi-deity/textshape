@@ -1,6 +1,7 @@
-from typing import TypeVar
+from typing import TypeVar,Union, Tuple
 import numpy as np
 
+Numeric = Union[int, float]
 T = TypeVar("T")
 Vector = np.ndarray[tuple[int, ...], np.dtype[T]]
 FloatVector = Vector[np.float32]
