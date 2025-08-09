@@ -1,9 +1,6 @@
-from typing import Callable
 
 import numpy as np
 
-from .fragment import TextFragmenter, word_splitter, TextFragments
-from .shape import FontMeasure
 from .text import MultiColumn
 from .types import Numeric
 

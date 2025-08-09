@@ -1,4 +1,3 @@
-from functools import cached_property
 
 import numpy as np
 
@@ -6,7 +5,6 @@ from textshape.shape import FontMeasure
 from textshape.fragment import TextFragments
 from textshape.types import FloatVector, IntVector, BoolVector, CharInfoVectors
 from textshape.wrap import wrap
-
 
 class TextColumn:
     def __init__(
@@ -151,7 +149,8 @@ class TextColumn:
     def modify_text(self):
         text = self._text_to_array(self.fragments.text)
         widths = self.fragments.ch_widths
-        if len(text) != len(widths): raise ValueError("Text and widths must have the same length. Something went wrong")
+        if len(text) != len(widths):
+            raise ValueError("Text and widths must have the same length. Something went wrong")
 
         line_starts, line_ends, hyphen_mask = (self.line_starts, self.line_ends, self.hyphen_mask)
 
