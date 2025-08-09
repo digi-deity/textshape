@@ -1,3 +1,5 @@
+from functools import cache
+
 import numpy as np
 
 from .smawk import OnlineConcaveMinima
@@ -66,11 +68,12 @@ def wrap(
 
     line_numbers = LineNumbers()
 
-    M = np.zeros((n + 1, n + 1))
+    #M = np.zeros((n + 1, n + 1))
 
     # Define penalty function for breaking on line words[i:j]
     # Below this definition we will set up cost[i] to be the
     # total penalty of all lines up to a break prior to word i.
+    @cache
     def penalty(i: int, j: int) -> float:
         if j > n:
             return -i  # concave flag for out of bounds
@@ -99,7 +102,7 @@ def wrap(
         if penalty_widths[j - 1] > 0.0:
             c += hyphen_penalty ** (1 if penalty_widths[i - 1] == 0.0 else 2)
 
-        M[i, j] = c
+        #M[i, j] = c
         return c
 
     # Apply concave minima algorithm and backtrack to form lines

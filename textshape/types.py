@@ -1,4 +1,4 @@
-from typing import TypeVar,Union, Tuple
+from typing import TypeVar,Union
 import numpy as np
 
 Numeric = Union[int, float]

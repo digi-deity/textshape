@@ -1,9 +1,5 @@
-from typing import Callable
-
 import numpy as np
 
-from .fragment import TextFragmenter, word_splitter, TextFragments
-from .shape import FontMeasure
 from .text import MultiColumn
 from .types import Numeric
 
@@ -36,12 +32,12 @@ class Layout:
                 If a tuple of two floats is provided, it applies to top/bottom and left/right margins.
                 If a tuple of four floats is provided, it applies to top, bottom, left, and right margins.
         """
-        if isinstance(margins, Numeric):
-            margins = (margins, margins, margins, margins)
+        if isinstance(margins, (float, int)):
+            margins_tuple = (margins, margins, margins, margins)
         elif isinstance(margins, tuple) and len(margins) == 2:
-            margins = (margins[0], margins[0], margins[1], margins[1])
+            margins_tuple = (margins[0], margins[0], margins[1], margins[1])
         elif isinstance(margins, tuple) and len(margins) == 4:
-            pass
+            margins_tuple = margins
         else:
             raise ValueError("Margins must be a numeric or a tuple of 2 or 4 numerics.")
 
@@ -52,10 +48,10 @@ class Layout:
         self.column_spacing = column_spacing
         self.page_width = page_size[0]
         self.page_height = page_size[1]
-        self.page_top_margin = margins[0]
-        self.page_bottom_margin = margins[1]
-        self.page_left_margin = margins[2]
-        self.page_right_margin = margins[3]
+        self.page_top_margin = margins_tuple[0]
+        self.page_bottom_margin = margins_tuple[1]
+        self.page_left_margin = margins_tuple[2]
+        self.page_right_margin = margins_tuple[3]
 
         column_widths = (self.page_width - self.page_left_margin - self.page_right_margin -
                         (self.columns - 1) * self.column_spacing) / self.columns
@@ -80,7 +76,6 @@ class Layout:
         usable_height = self.page_height - self.page_top_margin - self.page_bottom_margin
         return int(usable_height // line_height)
 
-
     def column_xy(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Calculate the x and y coordinates for each column based on the layout parameters.
@@ -98,7 +93,7 @@ class Layout:
             self,
             multi_column: MultiColumn,
             line_spacing: float = 1.0,
-    ):
+    ) -> tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Adjust the (x,y) coordinates of the text to fit within the specified columns in accordance
         with the layout parameters.

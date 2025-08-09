@@ -1,12 +1,9 @@
-from functools import cached_property
-
 import numpy as np
 
 from textshape.shape import FontMeasure
 from textshape.fragment import TextFragments
 from textshape.types import FloatVector, IntVector, BoolVector, CharInfoVectors
 from textshape.wrap import wrap
-
 
 class TextColumn:
     def __init__(
@@ -50,7 +47,7 @@ class TextColumn:
         dx_ws: FloatVector,
         ws: FloatVector,
         linebreaks: IntVector,
-    ) -> FloatVector:
+    ) -> tuple[FloatVector, FloatVector]:
         """Justify the text such that each line has the same width.
 
         Returns an array of offsets to be added to the x position of each character.
@@ -78,11 +75,9 @@ class TextColumn:
         dtype: type = float,
     ) -> FloatVector:
         """Ensure that input number is converted to a vector of floats."""
-        if isinstance(targets, float | int):
+        if isinstance(targets, (float, int)):
             targets = [targets]
-
-        targets_vector = np.array(targets, dtype=dtype)
-
+        targets_vector: FloatVector = np.array(targets, dtype=dtype)
         return targets_vector
 
     def to_bounding_boxes(
@@ -112,13 +107,21 @@ class TextColumn:
         """Convert a string to a numpy array of unicode code points."""
         return np.frombuffer(text.encode('utf-32-le'), dtype=np.uint32)
 
-    def _array_to_text(self, arr: FloatVector) -> str:
+    def _array_to_text(self, arr: IntVector) -> str:
         """Convert a numpy array of unicode code points to a string."""
         return arr.tobytes().decode('utf-32-le')
 
-    def _convert_and_scale(self, text, x, dx, y, dy, *args):
+    def _convert_and_scale(
+        self,
+        text_vector: IntVector,
+        x: FloatVector,
+        dx: FloatVector,
+        y: FloatVector,
+        dy: FloatVector,
+        *args,
+    ) -> CharInfoVectors:
         """Convert the text to a string and scale the coordinates by the fontsize."""
-        text = self._array_to_text(text)
+        text = self._array_to_text(text_vector)
         fontsize = self.fontsize
         return (
             text,
@@ -132,7 +135,7 @@ class TextColumn:
     def _to_bounding_boxes(
         self,
         line_spacing: float = 1.0,
-    ):
+    ) -> tuple[IntVector, FloatVector, FloatVector, FloatVector, FloatVector, IntVector]:
         assert isinstance(
             self.fragments.measure, FontMeasure
         ), "Calculating bboxes requires a FontMeasure to precisely measure text."
@@ -148,10 +151,13 @@ class TextColumn:
 
         return text, x, dx, y, dy, linebreaks
 
-    def modify_text(self):
+    def modify_text(
+        self,
+    ) -> tuple[IntVector, IntVector, IntVector, FloatVector, FloatVector]:
         text = self._text_to_array(self.fragments.text)
         widths = self.fragments.ch_widths
-        if len(text) != len(widths): raise ValueError("Text and widths must have the same length. Something went wrong")
+        if len(text) != len(widths):
+            raise ValueError("Text and widths must have the same length. Something went wrong")
 
         line_starts, line_ends, hyphen_mask = (self.line_starts, self.line_ends, self.hyphen_mask)
 
@@ -163,7 +169,7 @@ class TextColumn:
 
         # Make sure the target line widths vector is the same length as the number of lines to prevent index errors
         pad = (0, max(0, len(line_starts) - len(self.column_width)))
-        targets_vector = np.pad(self.column_width, pad, mode="edge", )[: len(line_starts)]
+        targets_vector: FloatVector = np.pad(self.column_width, pad, mode="edge", )[: len(line_starts)]
 
         # Create a character mapping representing the modified output text string. This vector maps the modified string
         # index positions to the input text string position. We initialize a mapping that matches the original text.
@@ -173,7 +179,7 @@ class TextColumn:
         mask = np.zeros(len(modified), dtype=np.int32)
         mask[line_ends[:-1]] += 1
         mask[line_starts[1:]] -= 1
-        mask = (1 - mask.cumsum()).astype(np.bool)
+        mask = (1 - mask.cumsum()).astype(bool)
         modified = modified[mask]
 
         # Insert newline characters
@@ -192,7 +198,13 @@ class TextColumn:
 
         return text, linebreaks, modified, targets_vector, widths
 
-    def calc_x(self, linebreaks, modified, targets_vector, dx):
+    def calc_x(
+        self,
+        linebreaks: IntVector,
+        modified: IntVector,
+        targets_vector: FloatVector,
+        dx: FloatVector,
+    ) -> tuple[FloatVector, FloatVector]:
         linebreaks_ = linebreaks[:-1]
         x = np.pad(dx, (1, 0)).cumsum()
 
@@ -210,7 +222,12 @@ class TextColumn:
 
         return dx, x[:-1]
 
-    def calc_y(self, line_spacing, linebreaks, widths):
+    def calc_y(
+        self,
+        line_spacing: float,
+        linebreaks: IntVector,
+        widths: FloatVector,
+    ) -> tuple[FloatVector, FloatVector]:
         linebreaks = linebreaks[:-1]
 
         line_gap = self.fragments.measure.line_gap
@@ -243,7 +260,7 @@ class MultiColumn(TextColumn):
             fragments: TextFragments,
             column_width: int | float | list[float | int] | FloatVector | IntVector,
             fontsize: int | float,
-            justify=False,
+            justify: bool = False,
     ):
         super().__init__(fragments, column_width, fontsize, justify)
 
@@ -251,7 +268,7 @@ class MultiColumn(TextColumn):
             self,
             linebreaks: IntVector,
             max_lines_per_column: IntVector,
-    ) -> BoolVector:
+    ) -> tuple[BoolVector, BoolVector]:
         """Greedily break the text lines such that they fit in a column of max length column_height."""
         split_mask = np.zeros(len(linebreaks), dtype=bool)
         drop_mask = np.zeros(len(linebreaks), dtype=bool)
@@ -283,10 +300,14 @@ class MultiColumn(TextColumn):
             line_spacing: float = 1.0,
             max_lines_per_column: int | list[int] | IntVector | None = None,
             reset_y: bool = True,
-    ):
-        max_lines_per_column = self.vectorize_input(max_lines_per_column, dtype=int)
+    ) -> CharInfoVectors:
+        max_lines_per_column_vec: IntVector
+        if max_lines_per_column is None:
+            max_lines_per_column_vec = np.array([999999], dtype=int)
+        else:
+            max_lines_per_column_vec = self.vectorize_input(max_lines_per_column, dtype=int)
         text, x, dx, y, dy, linebreaks = super()._to_bounding_boxes(line_spacing)
-        split_mask, _drop_mask = self.column_splitting(linebreaks, max_lines_per_column)
+        split_mask, _drop_mask = self.column_splitting(linebreaks, max_lines_per_column_vec)
 
         if split_mask.sum() == 0:
             return self._convert_and_scale(text, x, dx, y, dy, np.zeros(len(text), dtype=int))
@@ -295,7 +316,6 @@ class MultiColumn(TextColumn):
         cid = np.zeros(len(text), dtype=int)
         cid[linebreaks[split_mask]] = 1
         cid = cid.cumsum()
-
 
         # Reset y-coordinates for each column
         if reset_y:

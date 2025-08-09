@@ -1,5 +1,5 @@
 import re
-from typing import Callable
+from typing import Callable, Optional
 
 import numpy as np
 
@@ -18,8 +18,8 @@ class TextFragmenter:
 
     def __init__(
             self,
-            measure: Callable[[str], FloatVector] = None,
-            splitter: Callable[[str], list[Span]] = None,
+            measure: Optional[Callable[[str], FloatVector]] = None,
+            splitter: Optional[Callable[[str], list[Span]]] = None,
             tab_width: float | int = 4
     ):
         if measure is None:
@@ -86,7 +86,7 @@ class TextFragmenter:
 
         return TextFragments(
             text=text,
-            measure=self.measure,
+            measure=self.measure if isinstance(self.measure, FontMeasure) else monospace_measure,  # type: ignore[arg-type]
             hyphen_width=self.hyphen_width,
             tab_width=self.tab_width,
             ch_widths=widths,
@@ -149,5 +149,3 @@ class TextFragments(TextFragmentsBase):
     def get_fragment_str(self, i: int) -> str:
         """Helper function to get the text representation of the i-th fragment."""
         return self.text[self.starts[i]: self.ends[i]]
-
-
