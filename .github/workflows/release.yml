@@ -29,10 +29,19 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: cibw-*
           path: dist
-          merge-multiple: true
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.whl
+          files: dist/*.tar.gz
+  upload_pypi:
+    needs: [ release ]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
