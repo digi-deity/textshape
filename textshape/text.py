@@ -120,15 +120,21 @@ class TextColumn:
         dy: FloatVector,
         *args,
     ) -> CharInfoVectors:
-        """Convert the text to a string and scale the coordinates by the fontsize."""
+        """Convert the text to a string and scale the coordinates by the fontsize.
+
+        Additionally add the x_orig and y_orig coordinates as the glyph origin coordinates, which are needed
+        for correct placement of glyphs.
+        """
         text = self._array_to_text(text_vector)
         fontsize = self.fontsize
         return (
             text,
             x * fontsize,
             dx * fontsize,
-            y * fontsize,
+            x * fontsize,  # x_orig is the right edge of the character box, which is the origin for glyph placement
+            (y - self.fragments.measure.ascender) * fontsize,
             dy * fontsize,
+            y * fontsize,
             *args,
         )
 
@@ -232,8 +238,8 @@ class TextColumn:
 
         line_gap = self.fragments.measure.line_gap
         y = np.zeros_like(widths)
-        y[0] = -line_gap
-        y[linebreaks] -= line_gap * line_spacing
+        y[0] = self.fragments.measure.ascender
+        y[linebreaks] = line_gap * line_spacing
         y = y.cumsum()
         dy = np.full_like(y, line_gap)
         return dy, y
@@ -320,10 +326,10 @@ class MultiColumn(TextColumn):
         # Reset y-coordinates for each column
         if reset_y:
             splits = np.pad(linebreaks[split_mask], (1, 0))
-            y_offset = np.repeat(y[splits], np.diff(splits, append=len(y)))
-            y = y - y_offset - self.fragments.measure.line_gap
+            y_offset = np.repeat(y[splits], np.diff(splits, append=len(y))) - y[0]
+            y -= y_offset
 
-        # Drop trailing empty lines from each column
+        # Drop trailing empty line characters from columns
         drop_mask = np.ones(len(text), dtype=bool)
         drop_mask[linebreaks[_drop_mask]] = False
         text = text[drop_mask]

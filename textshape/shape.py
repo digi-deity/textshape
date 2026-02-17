@@ -75,8 +75,8 @@ class FontMeasure:
     def render_svg(
         self,
         text: str,
-        x: FloatVector,
-        y: FloatVector,
+        x_origin: FloatVector,
+        y_origin: FloatVector,
         fontsize: float,
         canvas_width: float,
         canvas_height: Optional[float] = None,
@@ -90,14 +90,8 @@ class FontMeasure:
         vhb = self.vhb
 
         s = fontsize / self.em
-        x = x / s
-        y = y / s
 
         font_extents = vhb.hbfont.get_font_extents("ltr")
-        line_gap = (
-            font_extents.line_gap or font_extents.ascender - font_extents.descender
-        ) * s
-        y -= font_extents.descender
 
         x_cursor = 0
         y_cursor = 0
@@ -113,8 +107,8 @@ class FontMeasure:
             cluster = info.cluster
 
             if cluster > prev_cluster:
-                x_cursor = x[cluster]
-                y_cursor = y[cluster]
+                x_cursor = x_origin[cluster]
+                y_cursor = y_origin[cluster]
             else:
                 # Something interesting with clustering has happened. Advance according to harfbuzz suggestion.
                 x_cursor += prev_x_advance
@@ -136,33 +130,32 @@ class FontMeasure:
 
         # Add a empty border and rescale
         x_min = 0
-        y_max = 0
+        y_min = 0
         x_max = canvas_width
         if canvas_height is not None:
-            y_min = -canvas_height
+            y_max = canvas_height
         else:
-            y_min = (y.min() + font_extents.descender) * s
+            y_max = y_origin.max() - font_extents.descender * s
 
-        x_min = x_min - line_gap
-        y_min = y_min - line_gap
-        x_max = x_max + line_gap
-        y_max = y_max + line_gap
+        x_min = x_min - 10
+        y_min = y_min - 10
+        x_max = x_max + 10
+        y_max = y_max + 10
 
         svg = [
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x_min} {y_min} {x_max - x_min} {y_max - y_min}" transform="matrix(1 0 0 -1 0 0)">',
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x_min} {y_min} {x_max - x_min} {y_max - y_min}">',
             f'<rect x="{x_min}" y="{y_min}" width="{x_max - x_min}" height="{y_max - y_min}" fill="#BBBBBB"/>',
-            f'<rect x="{x_min + line_gap}" y="{y_min + line_gap}" width="{x_max - x_min - 2*line_gap}" height="{y_max - y_min - 2*line_gap}" fill="#FFFFFF"/>',
+            f'<rect x="{x_min + 10}" y="{y_min + 10}" width="{x_max - x_min - 2*10}" height="{y_max - y_min - 2*10}" fill="#FFFFFF"/>',
             "<defs>",
             *defs.values(),
             "</defs>",
-            f'<g transform="scale({s}, {s})">',
             *paths,
-            "</g>",
             "</svg>",
             "",
         ]
 
-        return "\n".join(svg)
+        svg = "\n".join(svg)
+        return svg.replace('<use', f'<use transform="scale({s}, {-s})"')
 
 
 def monospace_measure(s: str) -> FloatVector:

@@ -52,7 +52,7 @@ column = TextColumn(
 )
 
 # Get bounding boxes for rendering
-text, x, dx, y, dy = column.to_bounding_boxes()
+text, x, dx, x_origin, y, dy, y_origin = column.to_bounding_boxes()
 ```
 
 ## Usage Examples
@@ -106,7 +106,7 @@ multi_column = MultiColumn(
 )
 
 # Get bounding boxes with column information
-text, x, dx, y, dy, column_id = multi_column.to_bounding_boxes(
+text, x, dx, x_origin, y, dy, y_origin, column_id = multi_column.to_bounding_boxes(
     max_lines_per_column=20,
     line_spacing=1.2
 )
@@ -141,7 +141,7 @@ multi_column = MultiColumn(
 )
 
 # Get positioned text for the layout
-text, x, dx, y, dy, page = layout.to_bounding_boxes(multi_column)
+text, x, dx, x_origin, y, dy, y_origin, page = layout.to_bounding_boxes(multi_column)
 ```
 
 ### SVG Rendering
@@ -150,8 +150,8 @@ text, x, dx, y, dy, page = layout.to_bounding_boxes(multi_column)
 # Generate SVG output
 svg_content = font_measure.render_svg(
     text=text,
-    x=x,
-    y=y,
+    x_origin=x_origin,
+    y_origin=y_origin,
     fontsize=12,
     canvas_width=600,
     canvas_height=800
@@ -161,6 +161,8 @@ svg_content = font_measure.render_svg(
 with open("output.svg", "w") as f:
     f.write(svg_content)
 ```
+
+**Note on Coordinate System**: TextShape uses the SVG/HTML coordinate system where the origin (0, 0) is at the top-left corner, and the y-axis increases downward. All coordinates returned by `to_bounding_boxes()` follow this convention.
 
 ### Line breaking with hyphenation
 
@@ -260,7 +262,7 @@ column = TextColumn(fragments, column_width=widths, fontsize=12)
 Control spacing between lines:
 
 ```python
-text, x, dx, y, dy = column.to_bounding_boxes(line_spacing=1.5)
+text, x, dx, x_origin, y, dy, y_origin = column.to_bounding_boxes(line_spacing=1.5)
 ```
 
 ## Performance Tips

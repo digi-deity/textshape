@@ -8,7 +8,11 @@ from textshape.text import MultiColumn, TextColumn
 from textshape.layout import Layout
 
 
-def test_multi_column():
+def test_max_lines_per_column():
+    """Test the calculation of maximum lines per column based on page height and font size. We don't move "columns" here,
+    but we will color what would have been a separate column. This also shows that 'newlines' should be ignored if they
+    occur on column boundaries.
+    """
     text = '\t' + '\n\n\t'.join(TEXTS)
 
     fontsize = 12
@@ -19,9 +23,9 @@ def test_multi_column():
     fragments = f(text)
     column = MultiColumn(fragments, column_width=width, fontsize=fontsize, justify=True)
 
-    text, x, dx, y, dy, c = column.to_bounding_boxes(max_lines_per_column=3, reset_y=False)
+    text, x, dx, x_orig, y, dy, y_orig, c = column.to_bounding_boxes(max_lines_per_column=3, reset_y=False)
 
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, canvas_width=width)
+    svg = fm.render_svg(text, x_orig, y_orig, fontsize=fontsize, canvas_width=width)
 
     boundaries = re.compile(r"\t|\b[^\s]")
     separators = np.array([x.span()[0] for x in boundaries.finditer(text)], dtype=int)
@@ -75,18 +79,26 @@ def test_layout():
     fragments = f(text)
     column = MultiColumn(fragments, column_width=layout.column_widths, fontsize=fontsize, justify=True)
 
-    text, x, dx, y, dy, p = layout.to_bounding_boxes(column)
-    y = y - p_height * p  # Adjust y to start from the top of the page
+    text, _, dx, x_orig, _, dy, y_orig, p = layout.to_bounding_boxes(column)
+    y_orig = y_orig + p_height * p  # Adjust y to start from the top of the page
 
     # Only keep values for the first page
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, canvas_width=p_width, canvas_height=(p[-1]+1) * p_height)
+    svg = fm.render_svg(text, x_orig, y_orig, fontsize=fontsize, canvas_width=p_width, canvas_height=(p[-1]+1) * p_height)
 
     def draw_rect(x, y, dx, dy, color="red"):
         return f'<rect width="{dx:.2f}" height="{dy:.2f}" x="{x:.2f}" y="{y:.2f}" style="stroke:{color}"/>'
 
+    # Draw a boundary line between pages
     rects = [
-        draw_rect(margin, -z*p_height, p_width - 2*margin, 1, "black") for z in range(1,p.max() + 1)
+        draw_rect(margin, z*p_height, p_width - 2*margin, 1, "black") for z in range(1,p.max() + 1)
     ]
+
+    # Draw a boundary line for the page margins
+    rects += [
+        draw_rect(margin, p_height * p + margin, p_width - 2*margin, p_height - 2*margin, "blue")
+        for p in range(0, p[-1] + 1)
+    ]
+
     rects = "\n".join(rects)
     rects = f'<g style="stroke-width:1;" fill-opacity="0">\n{rects}\n</g>\n</svg>'
 

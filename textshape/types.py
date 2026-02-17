@@ -12,8 +12,11 @@ Span = tuple[int, int]
 
 CharInfoVectors = tuple[
     str,  # text
+    FloatVector,  # x_origin
+    FloatVector,  # y_origin
     FloatVector,  # x
-    FloatVector,  # y
     FloatVector,  # dx (width)
-    FloatVector,  # dy (height)
+    FloatVector,  # y
+    FloatVector,  # dy (height),
+    ...
 ]

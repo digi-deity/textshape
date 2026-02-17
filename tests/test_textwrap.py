@@ -145,9 +145,9 @@ def test_oneliner():
     f = TextFragmenter(measure=fm, splitter=dummy_splitter)
     fragments = f(text)
     column = TextColumn(fragments, column_width=width, fontsize=fontsize)
-    text, x, dx, y, dy = column.to_bounding_boxes()
+    text, _, dx, x_origin, _, dy, y_origin = column.to_bounding_boxes()
 
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, canvas_width=width)
+    svg = fm.render_svg(text, x_origin, y_origin, fontsize=fontsize, canvas_width=width)
     with open(DIR / "text-oneliner.svg", "w") as f:
         f.write(svg)
 
@@ -162,8 +162,8 @@ def test_wrap_font():
     fragments = f(text)
     column = TextColumn(fragments, column_width=width, fontsize=fontsize, justify=False)
 
-    text, x, dx, y, dy = column.to_bounding_boxes()
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, canvas_width=width)
+    text, _, dx, x_origin, _, dy, y_origin = column.to_bounding_boxes()
+    svg = fm.render_svg(text, x_origin, y_origin, fontsize=fontsize, canvas_width=width)
     with open(DIR / "text.svg", "w") as f:
         f.write(svg)
 
@@ -179,8 +179,8 @@ def test_wrap_font_justified():
     fragments = f(text)
     column = TextColumn(fragments, column_width=width, fontsize=fontsize, justify=True)
 
-    text, x, dx, y, dy = column.to_bounding_boxes()
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, canvas_width=width)
+    text, _, dx, x_origin, _, dy, y_origin = column.to_bounding_boxes()
+    svg = fm.render_svg(text, x_origin, y_origin, fontsize=fontsize, canvas_width=width)
     with open(DIR / "text-justified.svg", "w") as f:
         f.write(svg)
 
@@ -195,8 +195,8 @@ def test_heterogeneous_widths():
     fragments = f(text)
     column = TextColumn(fragments, column_width=width, fontsize=fontsize, justify=True)
 
-    text, x, dx, y, dy = column.to_bounding_boxes()
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, canvas_width=46 * fontsize)
+    text, _, dx, x_origin, _, dy, y_origin = column.to_bounding_boxes()
+    svg = fm.render_svg(text, x_origin, y_origin, fontsize=fontsize, canvas_width=46 * fontsize)
     with open(DIR / "text-heterogeneous.svg", "w") as f:
         f.write(svg)
 
@@ -211,8 +211,8 @@ def test_wrap_force_newline_and_tabs():
     fragments = f(text)
     column = TextColumn(fragments, column_width=width, fontsize=fontsize, justify=True)
 
-    text, x, dx, y, dy = column.to_bounding_boxes()
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, canvas_width=width)
+    text, _, dx, x_origin, _, dy, y_origin = column.to_bounding_boxes()
+    svg = fm.render_svg(text, x_origin, y_origin, fontsize=fontsize, canvas_width=width)
     with open(DIR / "text-force-newline-and-tabs.svg", "w") as f:
         f.write(svg)
 
@@ -232,8 +232,8 @@ def test_wrap_font_selection():
     fragments = f(text)
     column = TextColumn(fragments, column_width=width, fontsize=fontsize, justify=True)
 
-    text, x, dx, y, dy = column.to_bounding_boxes(line_spacing=1.2)
-    svg = fm.render_svg(text, x, y, fontsize=fontsize, canvas_width=width)
+    text, x, dx, x_origin, y, dy, y_origin = column.to_bounding_boxes(line_spacing=1.2)
+    svg = fm.render_svg(text, x_origin, y_origin, fontsize=fontsize, canvas_width=width)
 
     boundaries = re.compile(r"\t|\b[^\s]")
     separators = np.array([x.span()[0] for x in boundaries.finditer(text)], dtype=int)

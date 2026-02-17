@@ -85,7 +85,7 @@ class Layout:
         """
 
         x = self.page_left_margin + np.pad(np.cumsum(self.column_widths[:-1] + self.column_spacing), (1, 0))
-        y = np.full_like(x, -self.page_top_margin)
+        y = np.full_like(x, self.page_top_margin)
 
         return x, y
 
@@ -101,15 +101,17 @@ class Layout:
 
         line_height = multi_column.fragments.measure.line_gap * multi_column.fontsize * line_spacing
         max_lines = self.max_lines_per_column(line_height)
-        text, x, dx, y, dy, c = multi_column.to_bounding_boxes(
+        text, x, dx, x_orig, y, dy, y_orig, c = multi_column.to_bounding_boxes(
             max_lines_per_column=max_lines,
             line_spacing=line_spacing
         )
 
         x_move, y_move = self.column_xy()
 
-        x = x + x_move[c % self.columns]
-        y = y + y_move[c % self.columns]
+        x += x_move[c % self.columns]
+        x_orig += x_move[c % self.columns]
+        y += y_move[c % self.columns]
+        y_orig += y_move[c % self.columns]
 
         p = c // self.columns
 
@@ -117,7 +119,9 @@ class Layout:
             text,
             x,
             dx,
+            x_orig,
             y,
             dy,
+            y_orig,
             p, # page index
         )

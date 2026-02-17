@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = 'textshape'
-version = "1.0.0.post1"
+version = "1.1.0"
 requires-python = ">= 3.10"
 dependencies = [
     "numpy>=2.0.0",
@@ -43,6 +43,7 @@ commands = [["ruff", "check", "textshape/"]]
 target-version = "py310"
 
 [tool.tox.gh.python]
+"3.14" = ["3.14"]
 "3.13" = ["3.13", "lint"]
 "3.12" = ["3.12"]
 "3.11" = ["3.11"]
