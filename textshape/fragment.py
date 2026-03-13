@@ -41,6 +41,9 @@ class TextFragmenter:
         elif (text[0].isspace() and text[0] != '\t') or text[n - 1].isspace():
             raise ValueError("Input text cannot start or end with whitespace.")
 
+        # Replace non-breaking spaces with regular spaces because we don't support this yet
+        text = text.replace("\xa0", " ")
+
         widths = np.array(self.measure(text), dtype=np.float32)
         spans = np.array(self.splitter(text)).T
 
